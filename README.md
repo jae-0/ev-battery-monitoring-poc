@@ -11,6 +11,19 @@
 
 ---
 
+## 💡 실전 비즈니스 시나리오 (Business Use Case)
+본 시스템은 다음과 같은 실제 물류 현장의 **'대규모 데이터 수집'**과 **'초실시간 위기 대응'** 상황을 해결하기 위해 설계되었습니다.
+
+* **배경 (Situation):** 전국에서 5,000대의 EV 폐배터리 운송 트럭이 본사로 이동 중입니다. 각 트럭에는 여러 개의 폐배터리가 실려 있으며, IoT 센서가 **1초마다 2건씩(총 10,000 TPS)** 배터리의 온도, 전압, GPS 위치 데이터를 클라우드로 쏘아 올립니다.
+* **위기 발생 (Problem):** 고속도로를 달리는 104번 트럭 적재함에 있는 'BAT-99' 배터리의 온도가 결함으로 인해 갑자기 65°C를 돌파하며 급상승하기 시작합니다.
+* **시스템의 해결 (Action):**
+    1.  **[수집 & 버퍼링]** `Telemetry Service`는 초당 1만 건씩 쏟아지는 정상 트래픽 속에서도 시스템 다운 없이 이 데이터를 받아 **Kafka(MSK)**에 안전하게 버퍼링합니다.
+    2.  **[실시간 탐지]** `Alert Service`가 Kafka 스트림을 즉시 소비하여, 500ms 이내에 '온도 임계치 초과(CRITICAL)'를 탐지합니다.
+    3.  **[긴급 조치]** 시스템이 중앙 관제 센터에 경고를 띄우고, 104번 트럭 기사에게 "화재 위험! 즉시 정차 후 소화 준비" 긴급 PUSH 알림을 발송합니다.
+    4.  **[레거시 동기화]** 이 모든 위기 대응 기록과 텔레메트리 데이터는 `Legacy Sync Service`를 통해 기존 온프레미스 사내망(PostgreSQL)으로 1시간 뒤 안전하게 요약 전송되어, 향후 해당 배터리의 상태 평가 증빙 자료로 쓰입니다.
+
+---
+
 ## 🤖 AI Harness Engineering (인프라 자동화 및 개발 지원)
 백엔드 개발팀이 비즈니스 로직에만 집중할 수 있도록, AI 에이전트(Architect, DevOps)를 활용한 **선언적 인프라 자동화 및 DevEx(Developer Experience) 환경**을 구축했습니다.
 
@@ -156,20 +169,4 @@ terraform apply -var-file="terraform.tfvars"
 ### 애플리케이션 & 프레임워크 연동
 **5. @Configuration 내 @PostConstruct 실행 순서 문제 (NPE 발생)**
 * **원인**: `DynamoDbClient` 빈이 생성되기 전에 `@PostConstruct` 테이블 생성 로직이 먼저 실행되어 `NullPointerException` 발생.
-* **해결**: 테이블 초기화 로직을 별도의 `@Component` 빈(`DynamoDbTableInitializer`)으로 분리하여 의존성 주입 생명주기 안정화.
-
-**6. Kafka 메시지 역직렬화 실패 (ClassNotFoundException)**
-* **원인**: 송신측(Telemetry) 패키지 경로가 포함된 `__TypeId__` 헤더를 수신측(Alert)이 그대로 읽어 자신의 클래스패스에서 찾지 못함.
-* **해결**: 수신측 Kafka Consumer 설정에서 `spring.json.use.type.headers: false` 처리 및 기본 매핑 클래스 명시.
-
-**7. Spring Boot 3.2 RestTemplateBuilder 타임아웃 API 변경**
-* **원인**: Boot 3.2부터 `connectTimeout(Duration)` 메서드가 제거되어 빌드 에러 발생.
-* **해결**: `SimpleClientHttpRequestFactory`를 직접 인스턴스화하여 타임아웃 세팅 후 `RestTemplate`에 주입하는 방식으로 마이그레이션.
-
-**8. Java 17 + Docker 환경에서 Mockito Self-attach 실패**
-* **원인**: Java 17의 엄격해진 보안 정책과 Docker 컨테이너의 제한된 환경이 맞물려 JVM self-attach 차단됨.
-* **해결**: Maven Surefire 플러그인에 `-Djdk.attach.allowAttachSelf=true` JVM 옵션 추가 및 Mockito extension(`mock-maker-subclass`) 설정 추가.
-
-**9. Mockito UnfinishedStubbingException 발생**
-* **원인**: `willReturn()` 파라미터 내부에서 또 다른 `mock()` 객체를 생성/호출하여 Mockito의 내부 Stubbing 상태 관리 충돌.
-* **해결**: Mock 객체 생성(Arrange)과 Stubbing(Act) 단계를 명확히 분리하여 변수 할당 후 `given()` 파라미터로 전달.
+* **해결**: 테이블 초기화 로직을 별도의 `@Component` 빈(`Dynamo
