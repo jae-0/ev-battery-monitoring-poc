@@ -1,0 +1,19 @@
+# @System-Architect-Agent: Phase 1 완료 후 contracts/infra-outputs.yaml 값을 기반으로 채울 것
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: battery-poc-config
+  namespace: battery-poc
+data:
+  AWS_REGION: "ap-northeast-2"
+  # ── 아래 값은 terraform output 후 infra-outputs.yaml 참조하여 기입 ──
+  KAFKA_BOOTSTRAP_SERVERS: ""        # msk.bootstrap_servers
+  KAFKA_TOPIC_TELEMETRY_RAW: ""      # msk.topics.telemetry_raw
+  KAFKA_TOPIC_TELEMETRY_PROCESSED: "" # msk.topics.telemetry_processed
+  KAFKA_TOPIC_ALERT_EVENTS: ""       # msk.topics.alert_events
+  KAFKA_TOPIC_LEGACY_SYNC_QUEUE: "" # msk.topics.legacy_sync_queue
+  KAFKA_TOPIC_DEAD_LETTER: ""        # msk.topics.dead_letter
+  DYNAMODB_TABLE_NAME: ""            # dynamodb.table_name
+  RDS_ENDPOINT: ""                   # rds.endpoint
+  RDS_DB_NAME: "battery_poc"
+  LEGACY_API_BASE_URL: "http://mock-legacy-api" # PoC: Mock URL

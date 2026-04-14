@@ -1,0 +1,9 @@
+# local 프로필
+aws:
+  secretsmanager:
+    enabled: false
+
+logging:
+  level:
+    com.battery.poc: DEBUG
+    io.github.resilience4j: DEBUG

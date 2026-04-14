@@ -1,0 +1,77 @@
+# contracts/api-specs/telemetry-api.yaml
+# 작성 주체: @Backend-Engineer-Agent (Telemetry Service, Phase 2 완료 시)
+# 읽기 허용: @DevOps-Engineer-Agent (CI/CD 및 부하 테스트 시나리오 구성용)
+# 수정 금지: Orchestrator, System-Architect, Alert/LegacySync 에이전트
+
+# @Backend-Engineer-Agent: 아래 OpenAPI 3.0 명세를 실제 구현에 맞게 완성하세요.
+# status를 completed로 변경하고 generated_at을 기입하세요.
+
+meta:
+  status: "completed"
+  generated_at: "2026-04-14T00:00:00Z"
+
+spec:
+  openapi: "3.0.0"
+  info:
+    title: "Telemetry Service API"
+    version: "1.0.0"
+    description: "IoT 배터리 센서 데이터 수신 및 조회 API"
+  servers:
+    - url: "http://localhost:8080"
+  paths:
+    /v1/telemetry:
+      post:
+        summary: "배터리 센서 데이터 수신"
+        parameters:
+          - in: header
+            name: X-API-Key
+            required: true
+            schema: { type: string }
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelemetryRequest"
+        responses:
+          "202": { description: "Accepted" }
+          "401": { description: "Invalid API Key" }
+          "400": { description: "Validation Error" }
+    /v1/telemetry/{batteryId}/latest:
+      get:
+        summary: "배터리 최신 상태 조회"
+        parameters:
+          - in: path
+            name: batteryId
+            required: true
+            schema: { type: string }
+        responses:
+          "200":
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/TelemetryResponse"
+          "404": { description: "Not Found" }
+  components:
+    schemas:
+      TelemetryRequest:
+        type: object
+        required: [batteryId, vehicleId, temperature, voltage, gpsLat, gpsLng]
+        properties:
+          batteryId:   { type: string }
+          vehicleId:   { type: string }
+          timestamp:   { type: integer, format: int64 }
+          temperature: { type: number }
+          voltage:     { type: number }
+          gpsLat:      { type: number }
+          gpsLng:      { type: number }
+      TelemetryResponse:
+        type: object
+        properties:
+          batteryId:   { type: string }
+          vehicleId:   { type: string }
+          timestamp:   { type: integer, format: int64 }
+          temperature: { type: number }
+          voltage:     { type: number }
+          gpsLat:      { type: number }
+          gpsLng:      { type: number }

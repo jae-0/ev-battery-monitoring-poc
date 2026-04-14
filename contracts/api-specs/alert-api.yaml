@@ -1,0 +1,22 @@
+# contracts/api-specs/alert-api.yaml
+# 작성 주체: @Backend-Engineer-Agent (Alert Service, Phase 2 완료 시)
+# 읽기 허용: @DevOps-Engineer-Agent
+# 수정 금지: Orchestrator, System-Architect, Telemetry/LegacySync 에이전트
+
+# Alert Service는 Kafka 기반 내부 서비스입니다.
+# 외부 노출 API가 최소화되어 있으며, 아래 명세를 완성하세요.
+
+meta:
+  status: "completed"
+  generated_at: "2026-04-14T00:00:00Z"
+
+spec:
+  openapi: "3.0.0"
+  info:
+    title: "Alert Service API"
+    version: ""
+    description: "Alert 이벤트 조회 API (내부 운영자용)"
+  servers:
+    - url: ""          # infra-outputs.yaml의 api_gateway.endpoint 값으로 기입
+  paths: {}            # @Backend-Engineer-Agent가 구현 완료 후 채울 것
+  components: {}

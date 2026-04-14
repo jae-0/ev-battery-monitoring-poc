@@ -1,0 +1,41 @@
+# contracts/kafka-schemas/telemetry-event.yaml
+# 작성 주체: @Backend-Engineer-Agent (Telemetry Service, Phase 2 완료 시)
+# 읽기 허용: @Backend-Engineer-Agent (Alert Service), @DevOps-Engineer-Agent
+# 수정 금지: Orchestrator, System-Architect, DevOps 에이전트
+
+version: "1.0"
+generated_at: "2026-04-14T00:00:00Z"
+status: "completed"
+
+schema:
+  name: "TelemetryEvent"
+  topic: "telemetry-raw"
+  fields:
+    - name: battery_id
+      type: string
+      required: true
+      description: "배터리 고유 식별자 (RDS batteries.battery_id FK)"
+    - name: timestamp
+      type: long
+      required: true
+      description: "Unix epoch milliseconds"
+    - name: temperature
+      type: float
+      required: true
+      description: "배터리 온도 (°C)"
+    - name: voltage
+      type: float
+      required: true
+      description: "배터리 전압 (V)"
+    - name: gps_lat
+      type: double
+      required: true
+      description: "GPS 위도"
+    - name: gps_lng
+      type: double
+      required: true
+      description: "GPS 경도"
+    - name: vehicle_id
+      type: string
+      required: true
+      description: "운송 차량 식별자 (RDS vehicles.vehicle_id FK)"

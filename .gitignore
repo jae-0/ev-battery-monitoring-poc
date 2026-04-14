@@ -1,0 +1,45 @@
+# ── Terraform ──────────────────────────────────
+infra/terraform/terraform.tfvars      # 실제 값 포함 (예시: terraform.tfvars.example만 커밋)
+infra/terraform/.terraform/
+infra/terraform/.terraform.lock.hcl
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/crash.log
+infra/terraform/override.tf
+infra/terraform/override.tf.json
+
+# ── Java / Maven ────────────────────────────────
+services/**/target/
+services/**/*.class
+services/**/*.jar
+services/**/*.war
+
+# ── JMeter 결과 ─────────────────────────────────
+cicd/load-test/results/*.jtl
+cicd/load-test/results/*.csv
+cicd/load-test/results/*.log
+load-test/results/
+
+# ── 환경변수 / 시크릿 ──────────────────────────
+.env
+.env.local          # 로컬 실행용 (예시: .env.example만 커밋)
+*.pem
+*.key
+
+# ── 환경변수 추가 ───────────────────────────────
+*.tfvars
+!*.tfvars.example
+
+# ── Docker ──────────────────────────────────────
+*.log
+
+# ── IDE ─────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ── Claude ──────────────────────────────────────
+.claude/

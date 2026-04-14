@@ -1,0 +1,58 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: alert-service
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: alert-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.battery.poc.*"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.battery.poc.alert.domain.TelemetryEvent
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+
+kafka:
+  topics:
+    telemetry-raw: ${KAFKA_TOPIC_TELEMETRY_RAW}
+    alert-events: ${KAFKA_TOPIC_ALERT_EVENTS}
+    dead-letter: ${KAFKA_TOPIC_DEAD_LETTER}
+  consumer:
+    max-retry: 3            # RELIABILITY.md: 3회 실패 시 DLT 전송
+
+# RELIABILITY.md: Circuit Breaker (Resilience4j)
+resilience4j:
+  circuitbreaker:
+    instances:
+      alertPublisher:
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        sliding-window-size: 10
+
+aws:
+  region: ${AWS_REGION:ap-northeast-2}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    com.battery.poc: INFO
+    org.springframework.kafka: WARN

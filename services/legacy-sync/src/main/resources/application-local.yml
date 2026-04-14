@@ -1,0 +1,18 @@
+# local 프로필
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: none   # infra/local/init.sql이 스키마 관리
+
+aws:
+  secretsmanager:
+    enabled: false
+
+legacy:
+  api:
+    base-url: ${LEGACY_API_BASE_URL:http://localhost:8090}
+
+logging:
+  level:
+    com.battery.poc: DEBUG
+    org.hibernate.SQL: DEBUG

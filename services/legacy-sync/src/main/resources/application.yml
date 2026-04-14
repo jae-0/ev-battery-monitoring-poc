@@ -1,0 +1,63 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: legacy-sync-service
+
+  datasource:
+    url: jdbc:postgresql://${RDS_ENDPOINT}:5432/${RDS_DB_NAME:battery_poc}
+    # 자격증명은 AWS Secrets Manager에서 런타임에 주입 (SECURITY.md)
+    username: ${RDS_USERNAME}
+    password: ${RDS_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate     # 스키마는 docs/generated/db-schema.md 기준으로 별도 migration 관리
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+kafka:
+  topics:
+    legacy-sync-queue: ${KAFKA_TOPIC_LEGACY_SYNC_QUEUE}
+
+legacy:
+  api:
+    base-url: ${LEGACY_API_BASE_URL}    # 온프레미스 레거시 시스템 API 주소 (PoC: Mock URL)
+    timeout-ms: 5000
+    retry-max: 3
+
+scheduler:
+  legacy-sync:
+    cron: "0 0 * * * *"                # TD-03: 1시간 주기 (본 사업 시 CDC로 전환)
+
+aws:
+  region: ${AWS_REGION:ap-northeast-2}
+  secretsmanager:
+    rds-secret-arn: ${RDS_SECRET_ARN}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    com.battery.poc: INFO

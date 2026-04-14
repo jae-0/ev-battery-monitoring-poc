@@ -1,0 +1,42 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: telemetry-service
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}   # contracts/infra-outputs.yaml: msk.bootstrap_servers
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all          # DESIGN.md: Idempotency - 데이터 무결성 보장
+      retries: 3
+      properties:
+        enable.idempotence: true
+
+kafka:
+  topics:
+    telemetry-raw: ${KAFKA_TOPIC_TELEMETRY_RAW}     # contracts/infra-outputs.yaml: msk.topics.telemetry_raw
+
+aws:
+  region: ${AWS_REGION:ap-northeast-2}
+  dynamodb:
+    table-name: ${DYNAMODB_TABLE_NAME}              # contracts/infra-outputs.yaml: dynamodb.table_name
+  secretsmanager:
+    iot-api-key-arn: ${IOT_API_KEY_SECRET_ARN}      # IoT 단말기 API Key ARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    com.battery.poc: INFO
+    org.springframework.kafka: WARN

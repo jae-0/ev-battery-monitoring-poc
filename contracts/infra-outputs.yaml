@@ -1,0 +1,42 @@
+# contracts/infra-outputs.yaml
+# 작성 주체: @System-Architect-Agent (Phase 1 완료 시)
+# 읽기 허용: @Backend-Engineer-Agent, @DevOps-Engineer-Agent
+# 수정 금지: Orchestrator, Backend, DevOps 에이전트
+
+version: "1.0"
+generated_at: "2026-04-14T00:00:00Z"
+phase: 1
+status: "completed"
+environment: "local"   # docker-compose 기반 로컬 환경 (AWS 전환 시 이 섹션 전체 교체)
+
+eks:
+  cluster_name: "local-docker-compose"
+  region: "ap-northeast-2"
+  namespace: "battery-poc"
+
+msk:
+  bootstrap_servers: "kafka:29092"   # docker-compose 서비스명
+  topics:
+    telemetry_raw: "telemetry-raw"
+    telemetry_processed: "telemetry-processed"
+    alert_events: "alert-events"
+    legacy_sync_queue: "legacy-sync-queue"
+    dead_letter: "dead-letter-topic"
+
+rds:
+  endpoint: "postgres"               # docker-compose 서비스명
+  port: 5432
+  database: "battery_poc"
+  secret_arn: "local"                # 로컬: .env.local에서 직접 주입
+
+dynamodb:
+  table_name: "battery-telemetry"
+  region: "ap-northeast-2"
+
+s3:
+  bucket_name: "local-skip"          # 로컬: S3/Athena 미사용
+  region: "ap-northeast-2"
+
+api_gateway:
+  endpoint: "http://localhost:8080"
+  stage: "local"

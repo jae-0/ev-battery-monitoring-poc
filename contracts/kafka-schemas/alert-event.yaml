@@ -1,0 +1,50 @@
+# contracts/kafka-schemas/alert-event.yaml
+# 작성 주체: @Backend-Engineer-Agent (Alert Service, Phase 2 완료 시)
+# 읽기 허용: @DevOps-Engineer-Agent
+# 수정 금지: Orchestrator, System-Architect, Telemetry/LegacySync 에이전트
+
+version: "1.0"
+generated_at: "2026-04-14T00:00:00Z"
+status: "completed"
+
+schema:
+  name: "AlertEvent"
+  topic: "alert-events"
+  fields:
+    - name: alert_id
+      type: string
+      required: true
+      description: "Alert 고유 식별자 (UUID)"
+    - name: battery_id
+      type: string
+      required: true
+      description: "이상 징후 감지된 배터리 식별자"
+    - name: timestamp
+      type: long
+      required: true
+      description: "이상 징후 감지 시각 (Unix epoch milliseconds)"
+    - name: alert_type
+      type: string
+      required: true
+      enum:
+        - TEMPERATURE_EXCEEDED
+        - VOLTAGE_CRITICAL
+        - GPS_LOST
+    - name: severity
+      type: string
+      required: true
+      enum:
+        - WARNING
+        - CRITICAL
+    - name: value
+      type: float
+      required: true
+      description: "감지된 실제 측정값"
+    - name: threshold
+      type: float
+      required: true
+      description: "초과한 임계값"
+    - name: vehicle_id
+      type: string
+      required: true
+      description: "해당 배터리를 운송 중인 차량 식별자"

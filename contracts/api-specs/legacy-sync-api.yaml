@@ -1,0 +1,43 @@
+# contracts/api-specs/legacy-sync-api.yaml
+# 작성 주체: @Backend-Engineer-Agent (Legacy Sync Service, Phase 2 완료 시)
+# 읽기 허용: @DevOps-Engineer-Agent
+# 수정 금지: Orchestrator, System-Architect, Telemetry/Alert 에이전트
+
+meta:
+  status: "completed"
+  generated_at: "2026-04-14T00:00:00Z"
+
+spec:
+  openapi: "3.0.0"
+  info:
+    title: "Legacy Sync Service API"
+    version: "1.0.0"
+    description: "레거시 시스템 동기화 수동 트리거 및 상태 조회 API (내부 운영자용)"
+  servers:
+    - url: "http://localhost:8082"
+  paths:
+    /v1/legacy-sync/trigger:
+      post:
+        summary: "수동 즉시 동기화 트리거"
+        responses:
+          "200":
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    result: { type: string }
+    /v1/legacy-sync/status:
+      get:
+        summary: "마지막 동기화 상태 조회"
+        responses:
+          "200":
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    lastSyncAt:     { type: string }
+                    lastSyncResult: { type: string }
+                    lastSyncCount:  { type: integer }
+  components: {}

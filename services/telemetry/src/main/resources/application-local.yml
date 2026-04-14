@@ -1,0 +1,17 @@
+# local 프로필: AWS 서비스를 로컬 대체재로 교체
+# docker-compose.yml 실행 시 SPRING_PROFILES_ACTIVE=local 로 자동 적용
+
+aws:
+  dynamodb:
+    endpoint: ${DYNAMODB_ENDPOINT:http://dynamodb-local:8000}
+
+  # 로컬에서는 Secrets Manager 미사용 — env var로 직접 주입
+  secretsmanager:
+    enabled: false
+
+iot:
+  api-key: ${IOT_API_KEY:local-dev-api-key}  # .env.local에서 주입
+
+logging:
+  level:
+    com.battery.poc: DEBUG

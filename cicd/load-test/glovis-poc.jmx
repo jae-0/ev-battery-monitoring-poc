@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="EV Battery PoC Load Test" enabled="true">
+      <stringProp name="TestPlan.comments">
+        RELIABILITY.md 기준:
+        - 목표: 10,000 TPS, p95 Latency 500ms 미만, 에러율 0.1% 미만
+        - Ramp-up: 0 → 10,000 TPS (5분)
+        - Steady-state: 10,000 TPS 유지 (10분)
+        - Ramp-down: 10,000 → 0 TPS (2분)
+      </stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+
+      <!-- 전역 변수: contracts/api-specs/telemetry-api.yaml의 서버 URL 기입 -->
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="TARGET_HOST" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_HOST</stringProp>
+            <stringProp name="Argument.value">${__P(target_host,localhost)}</stringProp>
+          </elementProp>
+          <elementProp name="TARGET_PORT" elementType="Argument">
+            <stringProp name="Argument.name">TARGET_PORT</stringProp>
+            <stringProp name="Argument.value">${__P(target_port,443)}</stringProp>
+          </elementProp>
+          <elementProp name="API_KEY" elementType="Argument">
+            <stringProp name="Argument.name">API_KEY</stringProp>
+            <stringProp name="Argument.value">${__P(api_key,)}</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+
+    <hashTree>
+      <!-- ─── Thread Group: POST /v1/telemetry (90% 부하) ─── -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Telemetry Ingest (90%)">
+        <intProp name="ThreadGroup.num_threads">9000</intProp>
+        <intProp name="ThreadGroup.ramp_time">300</intProp>    <!-- 5분 Ramp-up -->
+        <longProp name="ThreadGroup.duration">900</longProp>  <!-- 15분 총 실행 -->
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /v1/telemetry">
+          <stringProp name="HTTPSampler.domain">${TARGET_HOST}</stringProp>
+          <stringProp name="HTTPSampler.port">${TARGET_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/v1/telemetry</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <stringProp name="Argument.value">{
+  "battery_id": "${__RandomString(8,abcdefghijklmnopqrstuvwxyz0123456789,)}",
+  "vehicle_id": "VH-${__Random(1000,9999)}",
+  "timestamp": ${__time()},
+  "temperature": ${__Random(20,65)},
+  "voltage": ${__Random(40,60)},
+  "gps_lat": 37.${__Random(400000,600000)},
+  "gps_lng": 127.${__Random(000000,200000)}
+}</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Headers">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">X-API-Key</stringProp>
+                <stringProp name="Header.value">${API_KEY}</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+        </hashTree>
+      </hashTree>
+
+      <!-- ─── Thread Group: GET /v1/telemetry/{battery_id}/latest (10% 부하) ─── -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Telemetry Query (10%)">
+        <intProp name="ThreadGroup.num_threads">1000</intProp>
+        <intProp name="ThreadGroup.ramp_time">300</intProp>
+        <longProp name="ThreadGroup.duration">900</longProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /v1/telemetry/{battery_id}/latest">
+          <stringProp name="HTTPSampler.domain">${TARGET_HOST}</stringProp>
+          <stringProp name="HTTPSampler.port">${TARGET_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/v1/telemetry/${__RandomString(8,abcdefghijklmnopqrstuvwxyz0123456789,)}/latest</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Headers">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">X-API-Key</stringProp>
+                <stringProp name="Header.value">${API_KEY}</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+        </hashTree>
+      </hashTree>
+
+      <!-- ─── 결과 수집기 ─── -->
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report">
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <responseCode>true</responseCode>
+            <threadCounts>true</threadCounts>
+          </value>
+        </objProp>
+        <stringProp name="filename">cicd/load-test/results/result.jtl</stringProp>
+      </ResultCollector>
+      <hashTree/>
+
+      <!-- p95 Latency 500ms 초과 또는 에러율 0.1% 초과 시 테스트 실패 처리 -->
+      <kg.apc.jmeter.reporters.FlexibleFileWriter guiclass="kg.apc.jmeter.reporters.FlexibleFileWriterGui"
+        testclass="kg.apc.jmeter.reporters.FlexibleFileWriter" testname="SLA Assertion">
+      </kg.apc.jmeter.reporters.FlexibleFileWriter>
+      <hashTree/>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

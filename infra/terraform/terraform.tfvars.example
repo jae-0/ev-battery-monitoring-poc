@@ -1,0 +1,24 @@
+# terraform.tfvars.example
+# 복사 후 terraform.tfvars로 이름 변경하여 사용
+# terraform.tfvars는 .gitignore에 추가할 것
+
+aws_region   = "ap-northeast-2"
+environment  = "poc"
+project_name = "glovis-poc"
+
+vpc_cidr             = "10.0.0.0/16"
+public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs = ["10.0.11.0/24", "10.0.12.0/24"]
+availability_zones   = ["ap-northeast-2a", "ap-northeast-2c"]
+
+eks_node_instance_type = "t3.medium"
+eks_node_desired_count = 2
+eks_node_min_count     = 2
+eks_node_max_count     = 10
+
+msk_broker_instance_type = "kafka.m5.large"
+msk_broker_count         = 2
+
+rds_instance_class = "db.t3.medium"
+rds_db_name        = "glovis_poc"
+rds_username       = "glovis_admin"

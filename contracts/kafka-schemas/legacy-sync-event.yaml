@@ -1,0 +1,39 @@
+# contracts/kafka-schemas/legacy-sync-event.yaml
+# 작성 주체: @Backend-Engineer-Agent (Legacy Sync Service, Phase 2 완료 시)
+# 읽기 허용: @DevOps-Engineer-Agent
+# 수정 금지: Orchestrator, System-Architect, Telemetry/Alert 에이전트
+
+version: "1.0"
+generated_at: "2026-04-14T00:00:00Z"
+status: "completed"
+
+schema:
+  name: "LegacySyncEvent"
+  topic: "legacy-sync-queue"
+  schedule: "0 * * * *"  # 1시간 주기 Cron (PoC 범위, TD-03 기술 부채)
+  fields:
+    - name: battery_id
+      type: string
+      required: true
+      description: "동기화 대상 배터리 식별자"
+    - name: vehicle_id
+      type: string
+      required: true
+      description: "운송 차량 식별자"
+    - name: status
+      type: string
+      required: true
+      enum:
+        - IN_TRANSIT
+        - COLLECTED
+        - PROCESSING
+        - COMPLETED
+      description: "배터리 현재 상태"
+    - name: updated_at
+      type: long
+      required: true
+      description: "상태 변경 시각 (Unix epoch milliseconds)"
+    - name: sync_batch_id
+      type: string
+      required: true
+      description: "배치 동기화 고유 ID (Idempotency 키)"

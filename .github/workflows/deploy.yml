@@ -1,0 +1,79 @@
+name: Deploy to EKS
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    needs: []   # build-and-test.yml과 별도 워크플로우 — main 머지 시 자동 트리거
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ── Telemetry Service ──
+      - name: Build & Push telemetry image
+        working-directory: services/telemetry
+        run: |
+          docker build -t $ECR_REGISTRY/telemetry-service:${{ github.sha }} .
+          docker push $ECR_REGISTRY/telemetry-service:${{ github.sha }}
+
+      # ── Alert Service ──
+      - name: Build & Push alert image
+        working-directory: services/alert
+        run: |
+          docker build -t $ECR_REGISTRY/alert-service:${{ github.sha }} .
+          docker push $ECR_REGISTRY/alert-service:${{ github.sha }}
+
+      # ── Legacy Sync Service ──
+      - name: Build & Push legacy-sync image
+        working-directory: services/legacy-sync
+        run: |
+          docker build -t $ECR_REGISTRY/legacy-sync-service:${{ github.sha }} .
+          docker push $ECR_REGISTRY/legacy-sync-service:${{ github.sha }}
+
+      # ── EKS 배포 (Rolling Update - 무중단) ──
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
+
+      - name: Deploy to EKS (Rolling Update)
+        run: |
+          kubectl set image deployment/telemetry-service \
+            telemetry=$ECR_REGISTRY/telemetry-service:${{ github.sha }} \
+            --namespace battery-poc
+
+          kubectl set image deployment/alert-service \
+            alert=$ECR_REGISTRY/alert-service:${{ github.sha }} \
+            --namespace battery-poc
+
+          kubectl set image deployment/legacy-sync-service \
+            legacy-sync=$ECR_REGISTRY/legacy-sync-service:${{ github.sha }} \
+            --namespace battery-poc
+
+      # ── 배포 상태 확인 (60초 내 미완료 시 롤백) ──
+      - name: Verify rollout
+        run: |
+          kubectl rollout status deployment/telemetry-service -n battery-poc --timeout=60s || \
+            (kubectl rollout undo deployment/telemetry-service -n battery-poc && exit 1)
+
+          kubectl rollout status deployment/alert-service -n battery-poc --timeout=60s || \
+            (kubectl rollout undo deployment/alert-service -n battery-poc && exit 1)
+
+          kubectl rollout status deployment/legacy-sync-service -n battery-poc --timeout=60s || \
+            (kubectl rollout undo deployment/legacy-sync-service -n battery-poc && exit 1)
