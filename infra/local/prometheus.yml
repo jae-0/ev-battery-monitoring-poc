@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: telemetry-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['telemetry-service:8080']
+
+  - job_name: alert-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['alert-service:8081']
+
+  - job_name: legacy-sync-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['legacy-sync-service:8082']

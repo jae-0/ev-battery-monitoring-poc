@@ -4,6 +4,7 @@ networks:
 
 volumes:
   postgres-data:
+  grafana-data:
 
 services:
 
@@ -94,6 +95,34 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  # ── 모니터링 ─────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    networks: [battery-poc]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/local/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    networks: [battery-poc]
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/local/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/local/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
 
   # ── 애플리케이션 ──────────────────────────────────
 
