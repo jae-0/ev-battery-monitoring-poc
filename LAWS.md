@@ -123,3 +123,40 @@ tfsec High 등급 취약점, 하드코딩된 시크릿, SEC 법률 위반 가능
 ### ESC-06: 선행 페이즈 결과물 이상
 이전 페이즈의 contracts/ 파일이 누락되었거나 값이 비어있는 경우.
 임의로 값을 추측하거나 채우지 않는다.
+
+---
+
+## Category 5. 형상관리 법률 (Version Control Laws)
+
+### GIT-01: main 브랜치 직접 push 금지
+`main` 브랜치에 직접 커밋하거나 push하지 않는다.
+모든 작업은 전용 브랜치에서 수행 후 PR을 통해서만 병합한다.
+- **허용 브랜치 패턴:** `phase/{번호}-{설명}`, `feat/{서비스명}`, `fix/{설명}`, `ci/{설명}`
+- **위반 예시:** `git push origin main`, `git commit` 후 main에 직접 merge
+- **위반 시:** 즉시 작업 중단 → 사람에게 보고
+
+### GIT-02: 커밋 메시지 컨벤션 준수
+모든 커밋은 Conventional Commits 형식을 따른다.
+```
+<type>(<scope>): <subject>
+
+[optional body]
+```
+- **type:** `feat`, `fix`, `ci`, `test`, `docs`, `refactor`, `chore`
+- **scope:** `infra`, `telemetry`, `alert`, `legacy-sync`, `cicd`, `contracts`, `load-test`
+- **예시:** `feat(infra): EKS 클러스터 및 노드 그룹 Terraform 코드 작성`
+- **위반 예시:** `update`, `fix bug`, `작업중` 같은 비서술 메시지
+
+### GIT-03: 민감 정보 커밋 절대 금지
+`.env`, `*.tfvars`(example 제외), 비밀번호, API Key, ARN 등 민감 값이 포함된 파일을 커밋하지 않는다.
+- **확인 의무:** 커밋 전 `git diff --staged` 로 민감 정보 포함 여부 검토
+- **위반 시:** 즉시 해당 커밋 이력 제거 → 사람에게 보고 (SEC-01과 연동)
+
+### GIT-04: 페이즈 완료 시 커밋 의무
+각 페이즈의 작업 결과물은 해당 페이즈 브랜치에 반드시 커밋해야 한다.
+커밋 없이 다음 페이즈로 진행하는 것은 금지한다.
+- **커밋 타이밍:** contracts/ 파일의 `status: completed` 확인 직후
+
+### GIT-05: 강제 push 금지
+`git push --force` 또는 `git push --force-with-lease`는 사람의 명시적 승인 없이 실행할 수 없다.
+공유 브랜치의 히스토리를 임의로 덮어쓰는 것은 금지한다.

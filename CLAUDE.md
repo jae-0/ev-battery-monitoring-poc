@@ -65,3 +65,49 @@
 - 오케스트레이터는 contracts/ 파일의 **존재 여부와 status 필드만** 확인합니다.
 - 내용 작성은 담당 에이전트만 수행합니다.
 - 스키마 형식: YAML (각 contracts/ 파일의 주석 참조)
+
+---
+
+## Git 형상관리 운용 절차
+
+> **전제:** 모든 규칙의 근거는 `LAWS.md Category 5`를 따릅니다.
+
+### 브랜치 전략
+
+```
+main
+├── phase/1-infra          ← @System-Architect-Agent 전담
+├── phase/2-services       ← @Backend-Engineer-Agent 전담 (병렬 작업 가능)
+│   ├── feat/telemetry
+│   ├── feat/alert
+│   └── feat/legacy-sync
+├── phase/3-cicd           ← @DevOps-Engineer-Agent 전담
+└── phase/4-load-test      ← @DevOps-Engineer-Agent 전담
+```
+
+- 각 에이전트는 자신의 **전담 브랜치에서만** 작업합니다.
+- Phase 2는 서비스별 `feat/` 브랜치를 생성 후 `phase/2-services`로 병합합니다.
+
+### 페이즈별 커밋 체크포인트
+
+| 페이즈 | 브랜치 | 커밋 타이밍 | 커밋 scope |
+|--------|--------|-------------|------------|
+| Phase 1 | `phase/1-infra` | `contracts/infra-outputs.yaml` status: completed 직후 | `infra`, `contracts` |
+| Phase 2 | `feat/{서비스명}` → `phase/2-services` | `contracts/api-specs/*.yaml` 및 kafka-schemas 전부 생성 직후 | `telemetry`, `alert`, `legacy-sync`, `contracts` |
+| Phase 3 | `phase/3-cicd` | `.github/workflows/` 파일 생성 직후 | `ci`, `cicd` |
+| Phase 4 | `phase/4-load-test` | JMeter 결과 보고서 생성 직후 | `test`, `load-test` |
+
+### PR 병합 절차
+
+1. 각 페이즈 브랜치 작업 완료 → 오케스트레이터가 사람에게 보고
+2. **사람 승인** 후 PR 생성 (`phase/{번호}` → `main`)
+3. PR 제목 형식: `[Phase {번호}] {페이즈 명칭} 완료`
+4. Squash merge 사용 (페이즈 단위 히스토리 유지)
+5. merge 완료 후 페이즈 브랜치 삭제
+
+### 오케스트레이터 보고 시 포함 항목 (Git)
+
+사람에게 페이즈 완료를 보고할 때 아래 항목을 함께 전달합니다:
+- 브랜치명 및 최신 커밋 해시
+- 커밋 수 및 변경 파일 목록 요약
+- PR 생성 준비 완료 여부

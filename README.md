@@ -1,5 +1,5 @@
 # 🔋 EV Battery Real-time Monitoring System
-> **Cloud Migration & AI Harness Engineering PoC for 10,000 TPS**
+> **Cloud Migration & AI Harness Engineering PoC — 10,000 TPS 목표 아키텍처 설계**
 
 온프레미스로 운영 중인 EV 폐배터리 실시간 관제 시스템을 AWS 클라우드 기반 MSA로 전환하는 PoC 프로젝트입니다.
 인프라 설계, 컨테이너 오케스트레이션, CI/CD, 부하 테스트 전 과정을 직접 구축했으며, 특히 **AI 멀티 에이전트 기반의 하네스(Harness) 엔지니어링**을 도입하여 인프라 프로비저닝(IaC)과 백엔드 개발 환경을 100% 자동화하는 데 집중했습니다.
@@ -17,10 +17,10 @@
 * **배경 (Situation):** 전국에서 5,000대의 EV 폐배터리 운송 트럭이 본사로 이동 중입니다. 각 트럭에는 여러 개의 폐배터리가 실려 있으며, IoT 센서가 **1초마다 2건씩(총 10,000 TPS)** 배터리의 온도, 전압, GPS 위치 데이터를 클라우드로 쏘아 올립니다.
 * **위기 발생 (Problem):** 고속도로를 달리는 104번 트럭 적재함에 있는 'BAT-99' 배터리의 온도가 결함으로 인해 갑자기 65°C를 돌파하며 급상승하기 시작합니다.
 * **시스템의 해결 (Action):**
-    1.  **[수집 & 버퍼링]** `Telemetry Service`는 초당 1만 건씩 쏟아지는 정상 트래픽 속에서도 시스템 다운 없이 이 데이터를 받아 **Kafka(MSK)**에 안전하게 버퍼링합니다.
-    2.  **[실시간 탐지]** `Alert Service`가 Kafka 스트림을 즉시 소비하여, 500ms 이내에 '온도 임계치 초과(CRITICAL)'를 탐지합니다.
-    3.  **[긴급 조치]** 시스템이 중앙 관제 센터에 경고를 띄우고, 104번 트럭 기사에게 "화재 위험! 즉시 정차 후 소화 준비" 긴급 PUSH 알림을 발송합니다.
-    4.  **[레거시 동기화]** 이 모든 위기 대응 기록과 텔레메트리 데이터는 `Legacy Sync Service`를 통해 기존 온프레미스 사내망(PostgreSQL)으로 1시간 뒤 안전하게 요약 전송되어, 향후 해당 배터리의 상태 평가 증빙 자료로 쓰입니다.
+  1.  **[수집 & 버퍼링]** `Telemetry Service`는 초당 1만 건씩 쏟아지는 정상 트래픽 속에서도 시스템 다운 없이 이 데이터를 받아 **Kafka(MSK)**에 안전하게 버퍼링합니다.
+  2.  **[실시간 탐지]** `Alert Service`가 Kafka 스트림을 즉시 소비하여, 500ms 이내에 '온도 임계치 초과(CRITICAL)'를 탐지합니다.
+  3.  **[긴급 조치]** 시스템이 중앙 관제 센터에 경고를 띄우고, 104번 트럭 기사에게 "화재 위험! 즉시 정차 후 소화 준비" 긴급 PUSH 알림을 발송합니다.
+  4.  **[레거시 동기화]** 이 모든 위기 대응 기록과 텔레메트리 데이터는 `Legacy Sync Service`를 통해 기존 온프레미스 사내망(PostgreSQL)으로 1시간 뒤 안전하게 요약 전송되어, 향후 해당 배터리의 상태 평가 증빙 자료로 쓰입니다.
 
 ---
 
@@ -35,13 +35,13 @@
 
 ## 🎯 성능 목표 및 달성 지표
 
-| 지표 | 목표 | 측정 결과 (Local Docker 환경) |
-|------|------|-------------------------------|
+| 지표 | 목표 (AWS 환경) | 측정 결과 (Local Docker 환경) |
+|------|-----------------|-------------------------------|
 | **처리량 (Throughput)** | 10,000 TPS | 155.9 TPS (로컬 단일 PC 제약) |
 | **응답시간 (Latency)** | p95 500ms 미만 | 1,417ms (DynamoDB Local I/O 병목) |
 | **신뢰성 (Reliability)** | 에러율 0.1% 미만 | **0.00% (목표 달성 완료)** |
 
-> *참고: 로컬 환경은 JMeter·앱·인프라 컨테이너가 단일 PC 리소스를 경합하여 성능 제약이 발생합니다. 실제 AWS 환경 분산 부하 테스트 시 목표 TPS 및 Latency 달성이 가능하도록 아키텍처가 설계되었습니다.*
+> *참고: 로컬 환경은 JMeter·앱·인프라 컨테이너가 단일 PC 리소스를 경합하여 성능 제약이 발생합니다. TPS/Latency 목표는 AWS 분산 환경 기준이며, 아키텍처(EKS HPA + MSK + DynamoDB)는 해당 목표를 달성하도록 설계되었습니다.*
 
 ---
 
@@ -83,26 +83,45 @@
 |------|------|
 | **IaC & Orchestration** | Terraform, AWS EKS, Docker |
 | **Message Broker** | Amazon MSK (Apache Kafka) |
-| **Data Storage** | Amazon DynamoDB (Real-time), RDS PostgreSQL 15 (Master) |
+| **Data Storage** | Amazon DynamoDB (Real-time), RDS PostgreSQL 15 (Master), S3 (아티팩트) |
 | **CI/CD & Automation** | GitHub Actions |
 | **Security** | AWS WAF, Secrets Manager, KMS |
+| **Code Quality** | SonarQube (Quality Gate), JaCoCo (커버리지 80% 게이트) |
 | **Observability** | Prometheus, Grafana, CloudWatch |
 | **Load Test** | JMeter (Docker CLI) |
 | **Application** | Java 17, Spring Boot 3.2 |
 
 ---
 
-## 📂 프로젝트 구조 (Harness & Infra Focus)
+## 📂 프로젝트 구조
 
 ```text
 .
+├── .github/
+│   └── workflows/        # GitHub Actions 파이프라인 (build-and-test.yml, deploy.yml)
 ├── infra/
-│   ├── terraform/        # AI 친화적 Flat 구조 IaC (VPC, EKS, MSK, DynamoDB 등)
-│   │   ├── vpc.tf, eks.tf, msk.tf, dynamodb.tf, rds.tf, security.tf
-│   └── k8s/              # Kubernetes 매니페스트 (Namespace, Deployment, HPA)
+│   ├── terraform/        # AI 친화적 Flat 구조 IaC
+│   │   ├── vpc.tf        # 네트워크 (VPC, Subnet, NAT GW)
+│   │   ├── eks.tf        # EKS 클러스터 및 워커 노드 그룹
+│   │   ├── msk.tf        # Amazon MSK (Kafka)
+│   │   ├── dynamodb.tf   # DynamoDB 테이블
+│   │   ├── rds.tf        # RDS PostgreSQL Multi-AZ
+│   │   ├── s3.tf         # S3 버킷 (아티팩트 저장)
+│   │   ├── security.tf   # IAM, WAF, Security Group
+│   │   ├── providers.tf  # AWS Provider 및 버전 고정
+│   │   ├── variables.tf  # 입력 변수 정의
+│   │   └── outputs.tf    # 배포 결과 출력값 (contracts/ 주입용)
+│   ├── k8s/              # Kubernetes 매니페스트 (Namespace, Deployment, HPA)
+│   └── local/            # 로컬 DB 초기화 스크립트 (init.sql)
 ├── services/             # MSA 백엔드 소스코드 (Telemetry, Alert, Legacy-Sync)
-├── cicd/                 # CI/CD 파이프라인 및 JMeter 시나리오
+├── load-test/            # JMeter 시나리오 및 실행 스크립트
+│   ├── glovis-poc.jmx          # 10,000 TPS 정식 시나리오 (RELIABILITY.md 기준)
+│   ├── telemetry-load-test.jmx # 로컬 빠른 검증용 시나리오
+│   └── run-load-test.sh        # Docker JMeter 실행 스크립트
 ├── contracts/            # AI 에이전트 간 작업 상태 및 API/Kafka 스키마 명세
+├── cicd/                 # DevOps 에이전트 지침 (CLAUDE.md)
+├── docs/                 # 설계 문서, 기술 부채, 스펙 문서
+├── references/           # 외부 참고 자료
 └── docker-compose.yml    # 개발팀을 위한 로컬 인프라 대체 샌드박스 (DevEx)
 ```
 
@@ -142,7 +161,10 @@ terraform apply -var-file="terraform.tfvars"
 ```
 
 ### 3. CI/CD 파이프라인 (GitHub Actions)
-`Push/PR` ➡️ `Maven Test (JaCoCo 80% Gate)` ➡️ `Docker Multi-stage Build` ➡️ `Push to ECR` ➡️ `Deploy to EKS (Rolling Update)`
+
+**[build-and-test.yml]** `Push/PR` ➡️ `Maven Test (JaCoCo 80% Gate)` ➡️ `SonarQube Quality Gate` ➡️ `Docker Build` ➡️ `tfsec (infra/ 변경 시)`
+
+**[deploy.yml]** `main 머지` ➡️ `ECR Push` ➡️ `Deploy to EKS (Rolling Update)` ➡️ `Rollout 검증 (실패 시 자동 롤백)`
 
 ---
 
@@ -169,4 +191,20 @@ terraform apply -var-file="terraform.tfvars"
 ### 애플리케이션 & 프레임워크 연동
 **5. @Configuration 내 @PostConstruct 실행 순서 문제 (NPE 발생)**
 * **원인**: `DynamoDbClient` 빈이 생성되기 전에 `@PostConstruct` 테이블 생성 로직이 먼저 실행되어 `NullPointerException` 발생.
-* **해결**: 테이블 초기화 로직을 별도의 `@Component` 빈(`Dynamo
+* **해결**: 테이블 초기화 로직을 별도의 `@Component` 빈(`DynamoDbTableInitializer`)으로 분리하여 의존성 주입 생명주기 안정화.
+
+**6. Kafka 메시지 역직렬화 실패 (ClassNotFoundException)**
+* **원인**: 송신측(Telemetry) 패키지 경로가 포함된 `__TypeId__` 헤더를 수신측(Alert)이 그대로 읽어 자신의 클래스패스에서 찾지 못함.
+* **해결**: 수신측 Kafka Consumer 설정에서 `spring.json.use.type.headers: false` 처리 및 기본 매핑 클래스 명시.
+
+**7. Spring Boot 3.2 RestTemplateBuilder 타임아웃 API 변경**
+* **원인**: Boot 3.2부터 `connectTimeout(Duration)` 메서드가 제거되어 빌드 에러 발생.
+* **해결**: `SimpleClientHttpRequestFactory`를 직접 인스턴스화하여 타임아웃 세팅 후 `RestTemplate`에 주입하는 방식으로 마이그레이션.
+
+**8. Java 17 + Docker 환경에서 Mockito Self-attach 실패**
+* **원인**: Java 17의 엄격해진 보안 정책과 Docker 컨테이너의 제한된 환경이 맞물려 JVM self-attach 차단됨.
+* **해결**: Maven Surefire 플러그인에 `-Djdk.attach.allowAttachSelf=true` JVM 옵션 추가 및 Mockito extension(`mock-maker-subclass`) 설정 추가.
+
+**9. Mockito UnfinishedStubbingException 발생**
+* **원인**: `willReturn()` 파라미터 내부에서 또 다른 `mock()` 객체를 생성/호출하여 Mockito의 내부 Stubbing 상태 관리 충돌.
+* **해결**: Mock 객체 생성(Arrange)과 Stubbing(Act) 단계를 명확히 분리하여 변수 할당 후 `given()` 파라미터로 전달.
