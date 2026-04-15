@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 public class ApiKeyConfig {
 
     // 로컬: application-local.yml의 iot.api-key 값
-    // AWS: Secrets Manager에서 런타임에 주입
+    // Azure: Key Vault에서 런타임에 주입
     @Value("${iot.api-key:#{null}}")
     private String localApiKey;
 

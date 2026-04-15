@@ -7,9 +7,10 @@ COPY src ./src
 RUN mvn package -DskipTests -q
 
 FROM eclipse-temurin:17-jre-alpine
+RUN apk add --no-cache curl openssl
 WORKDIR /app
-RUN addgroup -S appuser && adduser -S appuser -G appuser
-USER appuser
 COPY --from=builder /app/target/telemetry-service-*.jar app.jar
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

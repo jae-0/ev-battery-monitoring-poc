@@ -39,8 +39,12 @@ resilience4j:
         wait-duration-in-open-state: 10s
         sliding-window-size: 10
 
-aws:
-  region: ${AWS_REGION:ap-northeast-2}
+  kafka:
+    properties:
+      # Azure Event Hubs Kafka 인증 (로컬은 application-local.yml에서 PLAINTEXT로 override)
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+      sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
 
 management:
   endpoints:

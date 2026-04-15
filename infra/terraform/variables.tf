@@ -1,7 +1,7 @@
-variable "aws_region" {
-  description = "AWS 리전"
+variable "location" {
+  description = "Azure 리전"
   type        = string
-  default     = "ap-northeast-2"
+  default     = "koreacentral"
 }
 
 variable "environment" {
@@ -13,85 +13,80 @@ variable "environment" {
 variable "project_name" {
   description = "프로젝트명 (리소스 네이밍에 사용)"
   type        = string
-  default     = "battery-poc"
+  default     = "glovis-poc"
 }
 
 # --- Networking ---
-variable "vpc_cidr" {
-  description = "VPC CIDR 블록"
+variable "vnet_cidr" {
+  description = "VNet CIDR 블록"
   type        = string
   default     = "10.0.0.0/16"
 }
 
 variable "public_subnet_cidrs" {
-  description = "Public Subnet CIDR 목록 (Multi-AZ)"
+  description = "Public Subnet CIDR 목록"
   type        = list(string)
   default     = ["10.0.1.0/24", "10.0.2.0/24"]
 }
 
 variable "private_subnet_cidrs" {
-  description = "Private Subnet CIDR 목록 (Multi-AZ)"
+  description = "Private Subnet CIDR 목록 (App/DB 배치)"
   type        = list(string)
   default     = ["10.0.11.0/24", "10.0.12.0/24"]
 }
 
-variable "availability_zones" {
-  description = "사용할 AZ 목록 (최소 2개)"
-  type        = list(string)
-  default     = ["ap-northeast-2a", "ap-northeast-2c"]
-}
-
-# --- EKS ---
-variable "eks_node_instance_type" {
-  description = "EKS 워커 노드 인스턴스 타입"
+# --- AKS ---
+variable "aks_node_vm_size" {
+  description = "AKS 워커 노드 VM 크기"
   type        = string
-  default     = "t3.medium"
+  default     = "Standard_D2_v2"
 }
 
-variable "eks_node_desired_count" {
-  type    = number
-  default = 2
-}
-
-variable "eks_node_min_count" {
-  type    = number
-  default = 2
-}
-
-variable "eks_node_max_count" {
-  type    = number
-  default = 10
-}
-
-# --- MSK ---
-variable "msk_broker_instance_type" {
-  description = "MSK 브로커 인스턴스 타입"
-  type        = string
-  default     = "kafka.m5.large"
-}
-
-variable "msk_broker_count" {
-  description = "MSK 브로커 수 (Multi-AZ를 위해 AZ 수의 배수)"
+variable "aks_node_count" {
+  description = "AKS 기본 노드 수"
   type        = number
   default     = 2
 }
 
-# --- RDS ---
-variable "rds_instance_class" {
-  description = "RDS 인스턴스 클래스"
-  type        = string
-  default     = "db.t3.medium"
+variable "aks_node_min_count" {
+  type    = number
+  default = 2
 }
 
-variable "rds_db_name" {
+variable "aks_node_max_count" {
+  type    = number
+  default = 10
+}
+
+# --- Event Hubs (Kafka) ---
+variable "eventhub_capacity" {
+  description = "Event Hubs 처리 단위 (TU)"
+  type        = number
+  default     = 2
+}
+
+# --- PostgreSQL ---
+variable "postgres_sku" {
+  description = "PostgreSQL Flexible Server SKU"
+  type        = string
+  default     = "B_Standard_B2ms"
+}
+
+variable "postgres_db_name" {
   description = "PostgreSQL 데이터베이스 이름"
   type        = string
-  default     = "battery_poc"
+  default     = "glovis_poc"
 }
 
-variable "rds_username" {
-  description = "PostgreSQL 마스터 사용자 이름"
+variable "postgres_admin_user" {
+  description = "PostgreSQL 관리자 계정"
   type        = string
-  default     = "battery_admin"
+  default     = "glovis_admin"
+  sensitive   = true
+}
+
+variable "postgres_admin_password" {
+  description = "PostgreSQL 관리자 비밀번호 (tfvars로 주입)"
+  type        = string
   sensitive   = true
 }

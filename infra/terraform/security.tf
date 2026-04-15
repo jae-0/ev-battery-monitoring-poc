@@ -1,28 +1,57 @@
-# KMS Key (SECURITY.md: RDS, DynamoDB at-rest 암호화)
-resource "aws_kms_key" "main" {
-  description             = "${var.project_name} KMS key for at-rest encryption"
-  deletion_window_in_days = 7
-  enable_key_rotation     = true
+data "azurerm_client_config" "current" {}
+
+# Azure Key Vault (AWS Secrets Manager + KMS 통합 대응)
+resource "azurerm_key_vault" "main" {
+  name                = "${var.project_name}-kv"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  tenant_id           = data.azurerm_client_config.current.tenant_id
+  sku_name            = "standard"
+
+  # SECURITY.md: 삭제 보호 (PoC는 비용 절감을 위해 7일로 최소화)
+  soft_delete_retention_days = 7
+  purge_protection_enabled   = false  # PoC only
+
+  # Terraform 실행 주체에게 Key Vault 접근 권한 부여
+  access_policy {
+    tenant_id = data.azurerm_client_config.current.tenant_id
+    object_id = data.azurerm_client_config.current.object_id
+
+    secret_permissions = ["Get", "Set", "List", "Delete", "Purge"]
+    key_permissions    = ["Get", "Create", "List", "Delete", "Purge", "Encrypt", "Decrypt"]
+  }
+
+  # AKS Managed Identity에게 시크릿 읽기 권한
+  access_policy {
+    tenant_id = data.azurerm_client_config.current.tenant_id
+    object_id = azurerm_kubernetes_cluster.main.identity[0].principal_id
+
+    secret_permissions = ["Get", "List"]
+  }
+
+  tags = { Name = "${var.project_name}-keyvault" }
 }
 
-resource "aws_kms_alias" "main" {
-  name          = "alias/${var.project_name}-key"
-  target_key_id = aws_kms_key.main.key_id
+# IoT API Key 시크릿 (AWS Secrets Manager iot_api_key 대응)
+resource "azurerm_key_vault_secret" "iot_api_key" {
+  name         = "iot-api-key"
+  value        = "REPLACE_WITH_ACTUAL_KEY"
+  key_vault_id = azurerm_key_vault.main.id
+
+  lifecycle { ignore_changes = [value] }
 }
 
-# Secrets Manager: IoT API Key (SECURITY.md PoC Scope)
-resource "aws_secretsmanager_secret" "iot_api_key" {
-  name                    = "${var.project_name}/iot-api-key"
-  description             = "EV IoT 단말기 API Key (PoC: X.509으로 전환 예정, TD-02)"
-  kms_key_id              = aws_kms_key.main.arn
-  recovery_window_in_days = 7
-}
+# Azure Container Registry (AWS ECR 대응)
+resource "azurerm_container_registry" "main" {
+  name                = replace("${var.project_name}acr", "-", "")
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku                 = "Basic"  # PoC: Basic 티어 (최소 비용)
 
-resource "aws_secretsmanager_secret_version" "iot_api_key" {
-  secret_id     = aws_secretsmanager_secret.iot_api_key.id
-  secret_string = jsonencode({
-    api_key = "REPLACE_WITH_ACTUAL_KEY"
-  })
+  # SECURITY.md: 공개 접근 제한
+  public_network_access_enabled = true  # PoC: AKS pull을 위해 허용. 본 사업 시 Private Endpoint
 
-  lifecycle { ignore_changes = [secret_string] }
+  admin_enabled = false  # Managed Identity로 인증 (admin 비활성화)
+
+  tags = { Name = "${var.project_name}-acr" }
 }
