@@ -128,11 +128,17 @@ tfsec High 등급 취약점, 하드코딩된 시크릿, SEC 법률 위반 가능
 
 ## Category 5. 형상관리 법률 (Version Control Laws)
 
-### GIT-01: main 브랜치 직접 push 금지
-`main` 브랜치에 직접 커밋하거나 push하지 않는다.
-모든 작업은 전용 브랜치에서 수행 후 PR을 통해서만 병합한다.
-- **허용 브랜치 패턴:** `phase/{번호}-{설명}`, `feat/{서비스명}`, `fix/{설명}`, `ci/{설명}`
-- **위반 예시:** `git push origin main`, `git commit` 후 main에 직접 merge
+### GIT-01: 브랜치 계층 구조 준수
+브랜치는 반드시 아래 계층 구조를 따른다.
+
+```
+main  ←  dev  ←  feat/* / fix/* / ci/* / phase/*
+```
+
+- `main`: 최종 배포용. `dev`에서 PR로만 병합 가능. 직접 커밋/push 금지.
+- `dev`: 통합 브랜치. 모든 작업 브랜치는 `dev`로 PR 후 병합.
+- 작업 브랜치 패턴: `feat/{설명}`, `fix/{설명}`, `ci/{설명}`, `phase/{번호}-{설명}`
+- **위반 예시:** main 또는 dev에 직접 커밋, feat/* → main 직접 PR
 - **위반 시:** 즉시 작업 중단 → 사람에게 보고
 
 ### GIT-02: 커밋 메시지 컨벤션 준수
