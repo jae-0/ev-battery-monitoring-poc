@@ -27,6 +27,7 @@ jobs:
         run: mvn verify
 
       - name: SonarQube Scan
+        if: ${{ env.SONAR_TOKEN != '' }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
@@ -58,6 +59,7 @@ jobs:
         run: mvn verify
 
       - name: SonarQube Scan
+        if: ${{ env.SONAR_TOKEN != '' }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
@@ -89,6 +91,7 @@ jobs:
         run: mvn verify
 
       - name: SonarQube Scan
+        if: ${{ env.SONAR_TOKEN != '' }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}

@@ -110,6 +110,16 @@
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
         <version>0.8.11</version>
+        <configuration>
+          <!-- 인프라 경계·설정·도메인 클래스는 커버리지 제외 (외부 SDK 의존, 비즈니스 로직 없음) -->
+          <excludes>
+            <exclude>**/*Application.class</exclude>
+            <exclude>**/config/**/*.class</exclude>
+            <exclude>**/domain/**/*.class</exclude>
+            <exclude>**/kafka/**/*.class</exclude>
+            <exclude>**/repository/**/*.class</exclude>
+          </excludes>
+        </configuration>
         <executions>
           <execution>
             <goals><goal>prepare-agent</goal></goals>
