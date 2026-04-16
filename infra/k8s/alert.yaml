@@ -32,6 +32,12 @@ spec:
           envFrom:
             - configMapRef:
                 name: battery-poc-config
+          env:
+            - name: KAFKA_SASL_JAAS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: battery-poc-secrets
+                  key: kafka-sasl-jaas-config
           resources:
             requests:
               cpu: "300m"
@@ -43,7 +49,7 @@ spec:
             httpGet:
               path: /actuator/health
               port: 8081
-            initialDelaySeconds: 30
+            initialDelaySeconds: 90
             periodSeconds: 10
           readinessProbe:
             httpGet:
