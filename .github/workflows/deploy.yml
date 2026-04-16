@@ -33,22 +33,25 @@ jobs:
       - name: Build & Push telemetry image
         working-directory: services/telemetry
         run: |
-          docker build -t $ACR_REGISTRY/telemetry-service:${{ github.sha }} .
+          docker build -t $ACR_REGISTRY/telemetry-service:${{ github.sha }} -t $ACR_REGISTRY/telemetry-service:latest .
           docker push $ACR_REGISTRY/telemetry-service:${{ github.sha }}
+          docker push $ACR_REGISTRY/telemetry-service:latest
 
       # ── Alert Service ──
       - name: Build & Push alert image
         working-directory: services/alert
         run: |
-          docker build -t $ACR_REGISTRY/alert-service:${{ github.sha }} .
+          docker build -t $ACR_REGISTRY/alert-service:${{ github.sha }} -t $ACR_REGISTRY/alert-service:latest .
           docker push $ACR_REGISTRY/alert-service:${{ github.sha }}
+          docker push $ACR_REGISTRY/alert-service:latest
 
       # ── Legacy Sync Service ──
       - name: Build & Push legacy-sync image
         working-directory: services/legacy-sync
         run: |
-          docker build -t $ACR_REGISTRY/legacy-sync-service:${{ github.sha }} .
+          docker build -t $ACR_REGISTRY/legacy-sync-service:${{ github.sha }} -t $ACR_REGISTRY/legacy-sync-service:latest .
           docker push $ACR_REGISTRY/legacy-sync-service:${{ github.sha }}
+          docker push $ACR_REGISTRY/legacy-sync-service:latest
 
       # AKS kubeconfig 설정 (AWS eks update-kubeconfig 대응)
       - name: Set AKS context
