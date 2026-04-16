@@ -11,8 +11,8 @@
     <hashTree>
 
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Telemetry Ingest" enabled="true">
-        <stringProp name="ThreadGroup.num_threads">100</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">10</stringProp>
+        <stringProp name="ThreadGroup.num_threads">5</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">5</stringProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
         <stringProp name="ThreadGroup.duration">60</stringProp>
         <stringProp name="ThreadGroup.delay">0</stringProp>
@@ -28,7 +28,7 @@
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments">
             <collectionProp name="Arguments.arguments"/>
           </elementProp>
-          <stringProp name="HTTPSampler.domain">host.docker.internal</stringProp>
+          <stringProp name="HTTPSampler.domain">20.249.108.139</stringProp>
           <stringProp name="HTTPSampler.port">8080</stringProp>
           <stringProp name="HTTPSampler.protocol">http</stringProp>
         </ConfigTestElement>
@@ -42,7 +42,7 @@
             </elementProp>
             <elementProp name="" elementType="Header">
               <stringProp name="Header.name">X-API-Key</stringProp>
-              <stringProp name="Header.value">local-dev-api-key</stringProp>
+              <stringProp name="Header.value">poc-iot-api-key</stringProp>
             </elementProp>
           </collectionProp>
         </HeaderManager>
@@ -91,7 +91,7 @@
           <intProp name="calcMode">1</intProp>
           <doubleProp>
             <name>throughput</name>
-            <value>30000.0</value>
+            <value>999999.0</value>
           </doubleProp>
         </ConstantThroughputTimer>
         <hashTree/>
@@ -131,7 +131,7 @@
             <connectTime>true</connectTime>
           </value>
         </objProp>
-        <stringProp name="filename">/results/summary.jtl</stringProp>
+        <stringProp name="filename">results/summary.jtl</stringProp>
       </ResultCollector>
       <hashTree/>
 

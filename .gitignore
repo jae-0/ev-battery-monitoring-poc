@@ -19,6 +19,7 @@ cicd/load-test/results/*.jtl
 cicd/load-test/results/*.csv
 cicd/load-test/results/*.log
 load-test/results/
+!load-test/results/LOAD_TEST_REPORT.md
 
 # ── 환경변수 / 시크릿 ──────────────────────────
 .env
