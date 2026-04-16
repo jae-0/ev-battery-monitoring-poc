@@ -33,11 +33,31 @@ spec:
             - configMapRef:
                 name: battery-poc-config
           env:
-            - name: IOT_API_KEY_SECRET_ARN
+            - name: COSMOS_ENDPOINT
               valueFrom:
                 secretKeyRef:
                   name: battery-poc-secrets
-                  key: iot-api-key-secret-arn
+                  key: cosmos-endpoint
+            - name: COSMOS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: battery-poc-secrets
+                  key: cosmos-key
+            - name: IOT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: battery-poc-secrets
+                  key: iot-api-key
+            - name: KEY_VAULT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: battery-poc-secrets
+                  key: key-vault-uri
+            - name: KAFKA_SASL_JAAS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: battery-poc-secrets
+                  key: kafka-sasl-jaas-config
           resources:
             requests:
               cpu: "500m"

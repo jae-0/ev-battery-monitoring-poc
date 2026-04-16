@@ -1,0 +1,149 @@
+{
+  "title": "EV Battery PoC — Service Dashboard",
+  "uid": "battery-poc-main",
+  "schemaVersion": 38,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Telemetry — 초당 요청 수 (TPS)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [{
+        "expr": "rate(http_server_requests_seconds_count{job=\"telemetry-service\", uri=\"/v1/telemetry\", method=\"POST\"}[1m])",
+        "legendFormat": "POST /v1/telemetry"
+      }],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "color": { "mode": "palette-classic" } }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Telemetry — p95 Latency (ms)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [{
+        "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=\"telemetry-service\", uri=\"/v1/telemetry\"}[1m])) * 1000",
+        "legendFormat": "p95 latency"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 200 },
+              { "color": "red", "value": 500 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "HTTP 에러율 (4xx + 5xx)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(http_server_requests_seconds_count{job=\"telemetry-service\", status=~\"4..|5..\"}[1m])",
+          "legendFormat": "telemetry errors"
+        },
+        {
+          "expr": "rate(http_server_requests_seconds_count{job=\"alert-service\", status=~\"4..|5..\"}[1m])",
+          "legendFormat": "alert errors"
+        },
+        {
+          "expr": "rate(http_server_requests_seconds_count{job=\"legacy-sync-service\", status=~\"4..|5..\"}[1m])",
+          "legendFormat": "legacy-sync errors"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Kafka — 컨슈머 Lag (alert-service-group)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [{
+        "expr": "kafka_consumer_fetch_manager_records_lag{job=\"alert-service\"}",
+        "legendFormat": "{{topic}} lag"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1000 },
+              { "color": "red", "value": 10000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "JVM Heap 사용량",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{job=\"telemetry-service\", area=\"heap\"}",
+          "legendFormat": "telemetry heap"
+        },
+        {
+          "expr": "jvm_memory_used_bytes{job=\"alert-service\", area=\"heap\"}",
+          "legendFormat": "alert heap"
+        },
+        {
+          "expr": "jvm_memory_used_bytes{job=\"legacy-sync-service\", area=\"heap\"}",
+          "legendFormat": "legacy-sync heap"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" }
+      }
+    },
+    {
+      "id": 6,
+      "title": "서비스 헬스 (UP=1 / DOWN=0)",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "up{job=\"telemetry-service\"}",
+          "legendFormat": "Telemetry"
+        },
+        {
+          "expr": "up{job=\"alert-service\"}",
+          "legendFormat": "Alert"
+        },
+        {
+          "expr": "up{job=\"legacy-sync-service\"}",
+          "legendFormat": "Legacy Sync"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "horizontal", "colorMode": "background" }
+    }
+  ]
+}

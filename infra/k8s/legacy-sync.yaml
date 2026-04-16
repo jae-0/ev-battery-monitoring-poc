@@ -33,11 +33,6 @@ spec:
             - configMapRef:
                 name: battery-poc-config
           env:
-            - name: RDS_SECRET_ARN
-              valueFrom:
-                secretKeyRef:
-                  name: battery-poc-secrets
-                  key: rds-secret-arn
             - name: RDS_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -48,6 +43,11 @@ spec:
                 secretKeyRef:
                   name: battery-poc-secrets
                   key: rds-password
+            - name: KAFKA_SASL_JAAS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: battery-poc-secrets
+                  key: kafka-sasl-jaas-config
           resources:
             requests:
               cpu: "200m"

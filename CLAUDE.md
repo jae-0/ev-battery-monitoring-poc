@@ -75,18 +75,21 @@
 ### 브랜치 전략
 
 ```
-main
-├── phase/1-infra          ← @System-Architect-Agent 전담
-├── phase/2-services       ← @Backend-Engineer-Agent 전담 (병렬 작업 가능)
-│   ├── feat/telemetry
-│   ├── feat/alert
-│   └── feat/legacy-sync
-├── phase/3-cicd           ← @DevOps-Engineer-Agent 전담
-└── phase/4-load-test      ← @DevOps-Engineer-Agent 전담
+main                       ← 최종 배포용 (dev → main PR만 허용)
+└── dev                    ← 통합 브랜치 (모든 작업 브랜치는 여기로 머지)
+    ├── phase/1-infra          ← @System-Architect-Agent 전담
+    ├── phase/2-services       ← @Backend-Engineer-Agent 전담 (병렬 작업 가능)
+    │   ├── feat/telemetry
+    │   ├── feat/alert
+    │   └── feat/legacy-sync
+    ├── phase/3-cicd           ← @DevOps-Engineer-Agent 전담
+    ├── phase/4-load-test      ← @DevOps-Engineer-Agent 전담
+    └── feat/{설명}            ← 기능 단위 작업 브랜치
 ```
 
-- 각 에이전트는 자신의 **전담 브랜치에서만** 작업합니다.
-- Phase 2는 서비스별 `feat/` 브랜치를 생성 후 `phase/2-services`로 병합합니다.
+- 모든 작업 브랜치는 **`dev`로만 PR**합니다. main 직접 PR 금지.
+- `dev → main` PR은 **사람이 직접** 검토 후 병합합니다.
+- Phase 2는 서비스별 `feat/` 브랜치를 생성 후 `phase/2-services` → `dev` 순서로 병합합니다.
 
 ### 페이즈별 커밋 체크포인트
 
@@ -99,11 +102,18 @@ main
 
 ### PR 병합 절차
 
-1. 각 페이즈 브랜치 작업 완료 → 오케스트레이터가 사람에게 보고
-2. **사람 승인** 후 PR 생성 (`phase/{번호}` → `main`)
-3. PR 제목 형식: `[Phase {번호}] {페이즈 명칭} 완료`
-4. Squash merge 사용 (페이즈 단위 히스토리 유지)
-5. merge 완료 후 페이즈 브랜치 삭제
+**작업 브랜치 → dev**
+1. 작업 브랜치 완료 → 오케스트레이터가 사람에게 보고
+2. **사람 승인** 후 PR 생성 (`feat/*` 또는 `phase/*` → `dev`)
+3. PR 제목 형식: `feat: {작업 내용 요약}` (Conventional Commits 준수)
+4. Squash merge 사용
+5. merge 완료 후 작업 브랜치 삭제
+
+**dev → main (릴리즈)**
+1. dev에서 충분히 검증 완료 후 사람이 직접 PR 생성 (`dev` → `main`)
+2. PR 제목 형식: `release: {버전 또는 주요 변경 요약}`
+3. Merge commit 사용 (릴리즈 히스토리 보존)
+4. main 병합 후 태그 생성 권장 (`v0.1.0` 등)
 
 ### 오케스트레이터 보고 시 포함 항목 (Git)
 

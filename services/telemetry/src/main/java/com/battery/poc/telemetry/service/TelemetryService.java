@@ -52,14 +52,14 @@ public class TelemetryService {
 
     public TelemetryResponse getLatest(String batteryId) {
         return repository.findLatest(batteryId)
-                .map(item -> TelemetryResponse.builder()
-                        .batteryId(item.getBatteryId())
-                        .vehicleId(item.getVehicleId())
-                        .timestamp(item.getTimestamp())
-                        .temperature(item.getTemperature())
-                        .voltage(item.getVoltage())
-                        .gpsLat(item.getGpsLat())
-                        .gpsLng(item.getGpsLng())
+                .map(doc -> TelemetryResponse.builder()
+                        .batteryId(doc.getBatteryId())
+                        .vehicleId(doc.getVehicleId())
+                        .timestamp(doc.getTimestamp())
+                        .temperature(doc.getTemperature())
+                        .voltage(doc.getVoltage())
+                        .gpsLat(doc.getGpsLat())
+                        .gpsLng(doc.getGpsLng())
                         .build())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "No telemetry data for batteryId: " + batteryId));

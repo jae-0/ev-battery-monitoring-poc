@@ -1,107 +1,96 @@
-resource "aws_vpc" "main" {
-  cidr_block           = var.vpc_cidr
-  enable_dns_support   = true
-  enable_dns_hostnames = true
+# VNet (AWS VPC 대응)
+resource "azurerm_virtual_network" "main" {
+  name                = "${var.project_name}-vnet"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  address_space       = [var.vnet_cidr]
 
-  tags = { Name = "${var.project_name}-vpc" }
+  tags = { Name = "${var.project_name}-vnet" }
 }
 
-resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
-  tags   = { Name = "${var.project_name}-igw" }
+# Public Subnet (Application Gateway/WAF만 배치 — SECURITY.md)
+resource "azurerm_subnet" "public" {
+  count                = length(var.public_subnet_cidrs)
+  name                 = "${var.project_name}-public-${count.index + 1}"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.public_subnet_cidrs[count.index]]
 }
 
-# Public Subnets (API Gateway만 배치)
-resource "aws_subnet" "public" {
-  count             = length(var.public_subnet_cidrs)
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = var.public_subnet_cidrs[count.index]
-  availability_zone = var.availability_zones[count.index]
-
-  map_public_ip_on_launch = true
-  tags = { Name = "${var.project_name}-public-${count.index + 1}" }
+# Private Subnet (AKS, PostgreSQL, Event Hubs 배치 — SECURITY.md)
+resource "azurerm_subnet" "private" {
+  count                = length(var.private_subnet_cidrs)
+  name                 = "${var.project_name}-private-${count.index + 1}"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.private_subnet_cidrs[count.index]]
 }
 
-# Private Subnets (App/DB 배치 — SECURITY.md 요구사항)
-resource "aws_subnet" "private" {
-  count             = length(var.private_subnet_cidrs)
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = var.private_subnet_cidrs[count.index]
-  availability_zone = var.availability_zones[count.index]
-
-  tags = { Name = "${var.project_name}-private-${count.index + 1}" }
+# AKS 전용 서브넷 (AKS가 별도 서브넷 권장)
+resource "azurerm_subnet" "aks" {
+  name                 = "${var.project_name}-aks"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = ["10.0.21.0/24"]
 }
 
-resource "aws_eip" "nat" {
-  count  = length(var.public_subnet_cidrs)
-  domain = "vpc"
+# NAT Gateway (Private Subnet → 외부 통신용)
+resource "azurerm_public_ip" "nat" {
+  name                = "${var.project_name}-nat-pip"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
 }
 
-resource "aws_nat_gateway" "main" {
-  count         = length(var.public_subnet_cidrs)
-  allocation_id = aws_eip.nat[count.index].id
-  subnet_id     = aws_subnet.public[count.index].id
-  tags          = { Name = "${var.project_name}-nat-${count.index + 1}" }
+resource "azurerm_nat_gateway" "main" {
+  name                = "${var.project_name}-nat"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku_name            = "Standard"
 }
 
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
-  }
-  tags = { Name = "${var.project_name}-rt-public" }
+resource "azurerm_nat_gateway_public_ip_association" "main" {
+  nat_gateway_id       = azurerm_nat_gateway.main.id
+  public_ip_address_id = azurerm_public_ip.nat.id
 }
 
-resource "aws_route_table" "private" {
-  count  = length(var.private_subnet_cidrs)
-  vpc_id = aws_vpc.main.id
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.main[count.index].id
-  }
-  tags = { Name = "${var.project_name}-rt-private-${count.index + 1}" }
-}
-
-resource "aws_route_table_association" "public" {
-  count          = length(var.public_subnet_cidrs)
-  subnet_id      = aws_subnet.public[count.index].id
-  route_table_id = aws_route_table.public.id
-}
-
-resource "aws_route_table_association" "private" {
+resource "azurerm_subnet_nat_gateway_association" "private" {
   count          = length(var.private_subnet_cidrs)
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private[count.index].id
+  subnet_id      = azurerm_subnet.private[count.index].id
+  nat_gateway_id = azurerm_nat_gateway.main.id
 }
 
-# WAF (SECURITY.md 요구사항)
-resource "aws_wafv2_web_acl" "main" {
-  name  = "${var.project_name}-waf"
-  scope = "REGIONAL"
+resource "azurerm_subnet_nat_gateway_association" "aks" {
+  subnet_id      = azurerm_subnet.aks.id
+  nat_gateway_id = azurerm_nat_gateway.main.id
+}
 
-  default_action { allow {} }
+# WAF — Azure Application Gateway with WAF v2 (SECURITY.md)
+resource "azurerm_public_ip" "appgw" {
+  name                = "${var.project_name}-appgw-pip"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
 
-  rule {
-    name     = "AWSManagedRulesCommonRuleSet"
-    priority = 1
-    override_action { none {} }
-    statement {
-      managed_rule_group_statement {
-        name        = "AWSManagedRulesCommonRuleSet"
-        vendor_name = "AWS"
-      }
-    }
-    visibility_config {
-      cloudwatch_metrics_enabled = true
-      metric_name                = "CommonRuleSetMetric"
-      sampled_requests_enabled   = true
-    }
+resource "azurerm_web_application_firewall_policy" "main" {
+  name                = "${var.project_name}-waf-policy"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  policy_settings {
+    enabled                     = true
+    mode                        = "Prevention"
+    request_body_check          = true
+    max_request_body_size_in_kb = 128
   }
 
-  visibility_config {
-    cloudwatch_metrics_enabled = true
-    metric_name                = "${var.project_name}-waf-metric"
-    sampled_requests_enabled   = true
+  managed_rules {
+    managed_rule_set {
+      type    = "OWASP"
+      version = "3.2"
+    }
   }
 }

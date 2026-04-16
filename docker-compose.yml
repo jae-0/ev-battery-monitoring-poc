@@ -4,6 +4,8 @@ networks:
 
 volumes:
   postgres-data:
+  grafana-data:
+  cosmos-data:
 
 services:
 
@@ -62,19 +64,28 @@ services:
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic dead-letter-topic --partitions 1 --replication-factor 1
         echo "Kafka topics created"
 
-  dynamodb-local:
-    image: amazon/dynamodb-local:2.0.0
+  # Azure Cosmos DB Emulator (DynamoDB Local 대응)
+  # 로컬 개발용 — 프로덕션은 Azure Cosmos DB 사용
+  cosmosdb-emulator:
+    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
     networks: [battery-poc]
     ports:
-      - "8000:8000"
-    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+      - "8091:8081"
+      - "10251:10251"
+      - "10252:10252"
+      - "10253:10253"
+      - "10254:10254"
+    environment:
+      AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 10
+      AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: "false"
+    volumes:
+      - cosmos-data:/tmp/cosmos
     healthcheck:
-      # DynamoDB Local은 400을 반환하면 정상 (서비스가 떠 있다는 의미)
-      test: ["CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' http://localhost:8000 | grep -qE '(200|400|405)'"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
+      test: ["CMD-SHELL", "curl -sk https://localhost:8081/_explorer/emulator.pem > /dev/null 2>&1 && echo OK || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
 
   postgres:
     image: postgres:15-alpine
@@ -82,18 +93,54 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: battery_poc
-      POSTGRES_USER: battery_admin
+      POSTGRES_DB: glovis_poc
+      POSTGRES_USER: glovis_admin
       POSTGRES_PASSWORD: local_password
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./infra/local/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U battery_admin -d battery_poc"]
+      test: ["CMD-SHELL", "pg_isready -U glovis_admin -d glovis_poc"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  # ── 모니터링 ─────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    networks: [battery-poc]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/local/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    networks: [battery-poc]
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/local/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/local/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+  dashboard:
+    image: nginx:alpine
+    networks: [battery-poc]
+    ports:
+      - "3001:80"
+    volumes:
+      - ./dashboard:/usr/share/nginx/html:ro
 
   # ── 애플리케이션 ──────────────────────────────────
 
@@ -109,7 +156,7 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      dynamodb-local:
+      cosmosdb-emulator:
         condition: service_healthy
       kafka-init:
         condition: service_completed_successfully

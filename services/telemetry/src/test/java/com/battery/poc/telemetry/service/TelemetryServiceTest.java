@@ -94,7 +94,7 @@ class TelemetryServiceTest {
     @Test
     @DisplayName("저장된 배터리 최신 데이터 조회 성공")
     void getLatest_found_returnsResponse() {
-        TelemetryRepository.TelemetryItem item = new TelemetryRepository.TelemetryItem();
+        TelemetryRepository.TelemetryDocument item = new TelemetryRepository.TelemetryDocument();
         item.setBatteryId("BAT-001");
         item.setVehicleId("VEH-001");
         item.setTimestamp(1713052800000L);

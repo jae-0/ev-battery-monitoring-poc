@@ -4,9 +4,10 @@ spring:
     hibernate:
       ddl-auto: none   # infra/local/init.sql이 스키마 관리
 
-aws:
-  secretsmanager:
-    enabled: false
+spring:
+  kafka:
+    properties:
+      security.protocol: PLAINTEXT  # 로컬 Kafka는 인증 없음
 
 legacy:
   api:

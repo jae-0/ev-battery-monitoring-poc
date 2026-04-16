@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🔋 EV Battery Monitoring Dashboard</title>
+
+  <!-- Leaflet.js -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --blue: #58a6ff;
+      --purple: #bc8cff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 16px; font-weight: 600; }
+    .api-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+    .dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .dot.err { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+    .stats-bar {
+      margin-left: auto;
+      display: flex;
+      gap: 24px;
+    }
+    .stat { text-align: center; }
+    .stat-val { font-size: 18px; font-weight: 700; color: var(--blue); }
+    .stat-lbl { font-size: 10px; color: var(--muted); }
+
+    /* ── Main Layout ── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    .panel {
+      background: var(--bg);
+      padding: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Map panel spans 2 rows on the left */
+    #panel-map {
+      grid-row: 1 / 3;
+      padding: 0;
+      position: relative;
+    }
+    #map { width: 100%; height: 100%; }
+
+    /* Map overlay title */
+    .map-title {
+      position: absolute;
+      top: 10px; left: 10px;
+      z-index: 1000;
+      background: rgba(13,17,23,0.85);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      pointer-events: none;
+    }
+
+    /* ── Charts ── */
+    .chart-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+
+    /* ── Alert Panel ── */
+    #panel-alerts { overflow: hidden; }
+    #alert-log {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    #alert-log::-webkit-scrollbar { width: 4px; }
+    #alert-log::-webkit-scrollbar-track { background: transparent; }
+    #alert-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .alert-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      border-left: 3px solid transparent;
+      font-size: 12px;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; } }
+
+    .alert-item.CRITICAL {
+      background: rgba(248,81,73,0.08);
+      border-left-color: var(--red);
+    }
+    .alert-item.WARNING {
+      background: rgba(210,153,34,0.08);
+      border-left-color: var(--yellow);
+    }
+    .alert-item.INFO {
+      background: rgba(88,166,255,0.06);
+      border-left-color: var(--blue);
+    }
+    .alert-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .CRITICAL .alert-badge { background: var(--red); color: #fff; }
+    .WARNING .alert-badge { background: var(--yellow); color: #000; }
+    .INFO .alert-badge { background: var(--blue); color: #000; }
+
+    .alert-body { flex: 1; }
+    .alert-msg { color: var(--text); }
+    .alert-time { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Footer Controls ── */
+    footer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    footer span { font-size: 11px; color: var(--muted); font-weight: 600; }
+
+    button {
+      padding: 5px 12px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    button:hover { border-color: var(--blue); color: var(--blue); }
+    button.danger:hover { border-color: var(--red); color: var(--red); }
+    button.warning-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+    button.primary {
+      background: var(--blue);
+      color: #0d1117;
+      border-color: var(--blue);
+      font-weight: 600;
+    }
+    button.primary:hover { opacity: 0.85; }
+    button.active {
+      background: #1a3a1a;
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .sep { color: var(--border); }
+
+    /* Battery table in chart panel header */
+    .battery-badges {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .bat-badge {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .bat-badge.selected { border-color: var(--blue); background: rgba(88,166,255,0.12); }
+    .bat-badge.NORMAL { color: var(--green); }
+    .bat-badge.WARNING { color: var(--yellow); }
+    .bat-badge.CRITICAL { color: var(--red); }
+
+    /* API log strip at top of right column */
+    #api-log {
+      font-size: 10px;
+      color: var(--muted);
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      flex-shrink: 0;
+      margin-bottom: 4px;
+      height: 14px;
+    }
+
+    /* Threshold lines */
+    .threshold-legend {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 4px;
+      flex-shrink: 0;
+    }
+    .threshold-item { font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+    .threshold-line { width: 16px; height: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <h1>🔋 EV Battery Real-time Monitoring</h1>
+  <div class="api-status">
+    <div class="dot" id="dot"></div>
+    <span id="api-status-text">백엔드 연결 확인 중…</span>
+  </div>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-val" id="stat-sent">0</div><div class="stat-lbl">총 전송</div></div>
+    <div class="stat"><div class="stat-val" id="stat-ok" style="color:var(--green)">0</div><div class="stat-lbl">성공</div></div>
+    <div class="stat"><div class="stat-val" id="stat-err" style="color:var(--red)">0</div><div class="stat-lbl">실패</div></div>
+    <div class="stat"><div class="stat-val" id="stat-alert" style="color:var(--yellow)">0</div><div class="stat-lbl">알람</div></div>
+    <div class="stat"><div class="stat-val" id="stat-tps" style="color:var(--purple)">0</div><div class="stat-lbl">TPS</div></div>
+  </div>
+</header>
+
+<!-- ── Main ── -->
+<main>
+
+  <!-- Map (left, full height) -->
+  <div class="panel" id="panel-map">
+    <div class="map-title">🗺 트럭 실시간 위치</div>
+    <div id="map"></div>
+  </div>
+
+  <!-- Temperature Chart (right top) -->
+  <div class="panel">
+    <div class="panel-title">온도 (°C)</div>
+    <div class="battery-badges" id="badges-temp"></div>
+    <div class="threshold-legend">
+      <div class="threshold-item"><div class="threshold-line" style="background:var(--red)"></div>CRITICAL &gt;60°C</div>
+      <div class="threshold-item"><div class="threshold-line" style="background:var(--yellow);"></div>WARNING &gt;50°C</div>
+    </div>
+    <div id="api-log"></div>
+    <div class="chart-wrap"><canvas id="tempChart"></canvas></div>
+  </div>
+
+  <!-- Alert Panel (right bottom) -->
+  <div class="panel" id="panel-alerts">
+    <div class="panel-title">⚡ Alert 로그 (실시간)</div>
+    <div id="alert-log">
+      <div class="alert-item INFO">
+        <div class="alert-badge">INFO</div>
+        <div class="alert-body">
+          <div class="alert-msg">시스템 시작 — 백엔드 연결 대기 중</div>
+          <div class="alert-time">방금 전</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── Footer ── -->
+<footer>
+  <span>시나리오</span>
+  <button class="primary" id="btn-auto" onclick="toggleAuto()">▶ 자동 전송 시작</button>
+  <button onclick="sendScenario('normal')">✅ 정상 데이터</button>
+  <button class="warning-btn" onclick="sendScenario('warning')">⚠️ 온도 경고 (52°C)</button>
+  <button class="danger" onclick="sendScenario('critical')">🔴 화재 징후 (67°C)</button>
+  <button class="danger" onclick="sendScenario('voltage')">⚡ 전압 이상</button>
+  <button onclick="sendScenario('gps')">📡 GPS 누락</button>
+  <button onclick="sendScenario('idempotency')">🔁 중복 전송 (Idempotency)</button>
+  <div class="sep">|</div>
+  <button onclick="clearAlerts()">알람 초기화</button>
+  <button onclick="clearStats()">통계 초기화</button>
+</footer>
+
+<script>
+// ── Config ──────────────────────────────────────────────
+const API_BASE = 'http://localhost:8080';
+const API_KEY  = 'local-dev-api-key';
+const INTERVAL_MS = 2000;       // 자동 전송 주기
+const MAX_POINTS  = 40;         // 차트 최대 포인트 수
+const MAX_ALERTS  = 60;         // 알람 로그 최대 행
+
+// ── 배터리 초기 정보 ──────────────────────────────────────
+const BATTERIES = [
+  { id: 'BAT-A001', vehicleId: 'VH-1001', lat: 37.5665, lng: 126.9780, city: '서울', color: '#58a6ff' },
+  { id: 'BAT-A002', vehicleId: 'VH-1002', lat: 35.1796, lng: 129.0756, city: '부산', color: '#3fb950' },
+  { id: 'BAT-A003', vehicleId: 'VH-1003', lat: 36.3504, lng: 127.3845, city: '대전', color: '#bc8cff' },
+  { id: 'BAT-A004', vehicleId: 'VH-1004', lat: 35.8714, lng: 128.6014, city: '대구', color: '#ffa657' },
+  { id: 'BAT-A005', vehicleId: 'VH-1005', lat: 37.4563, lng: 126.7052, city: '인천', color: '#ff7b72' },
+];
+
+// ── State ────────────────────────────────────────────────
+let state = {
+  autoRunning: false,
+  autoTimer: null,
+  sent: 0, ok: 0, err: 0, alertCount: 0,
+  tpsWindow: [],
+  lastIdempotencyPayload: null,
+  scenario: null,        // null = 정상 자동, or override one-shot
+  batteries: {},         // batteryId -> { status, temp, voltage, lat, lng }
+  selectedBat: 'BAT-A001',
+  chartLabels: [],
+  chartData: {},         // batteryId -> [temps]
+};
+
+// Init per-battery state
+BATTERIES.forEach(b => {
+  state.batteries[b.id] = {
+    status: 'NORMAL',
+    temp: 30 + Math.random() * 10,
+    voltage: 48 + Math.random() * 4,
+    lat: b.lat, lng: b.lng,
+  };
+  state.chartData[b.id] = [];
+});
+
+// ── Map Setup ────────────────────────────────────────────
+const map = L.map('map', { zoomControl: true }).setView([36.5, 127.8], 7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap',
+  maxZoom: 18,
+}).addTo(map);
+
+function makeIcon(color, status) {
+  const pulse = status === 'CRITICAL' ? `
+    <circle cx="16" cy="16" r="13" fill="${color}" opacity="0.2">
+      <animate attributeName="r" from="10" to="16" dur="1s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" from="0.4" to="0" dur="1s" repeatCount="indefinite"/>
+    </circle>` : '';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+    ${pulse}
+    <circle cx="16" cy="16" r="10" fill="${color}" stroke="#0d1117" stroke-width="2"/>
+    <text x="16" y="20" text-anchor="middle" font-size="11" fill="#fff">🚛</text>
+  </svg>`;
+  return L.divIcon({
+    html: svg,
+    className: '',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+}
+
+const markers = {};
+BATTERIES.forEach(b => {
+  const m = L.marker([b.lat, b.lng], { icon: makeIcon(b.color, 'NORMAL') })
+    .addTo(map)
+    .bindTooltip(`<b>${b.id}</b><br>${b.city}`, { permanent: false });
+  markers[b.id] = m;
+});
+
+function updateMarker(batteryId) {
+  const bat = BATTERIES.find(b => b.id === batteryId);
+  const s   = state.batteries[batteryId];
+  const color = s.status === 'CRITICAL' ? '#f85149' :
+                s.status === 'WARNING'  ? '#d29922' : bat.color;
+  markers[batteryId].setIcon(makeIcon(color, s.status));
+  markers[batteryId].setLatLng([s.lat, s.lng]);
+  markers[batteryId].setTooltipContent(
+    `<b>${batteryId}</b><br>🌡 ${s.temp.toFixed(1)}°C &nbsp; ⚡ ${s.voltage.toFixed(1)}V<br>
+     <span style="color:${color}">${s.status}</span>`
+  );
+}
+
+// ── Temperature Chart ─────────────────────────────────────
+const tempCtx = document.getElementById('tempChart').getContext('2d');
+const tempChart = new Chart(tempCtx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: BATTERIES.map(b => ({
+      label: b.id,
+      data: [],
+      borderColor: b.color,
+      backgroundColor: b.color + '18',
+      borderWidth: 1.5,
+      pointRadius: 0,
+      tension: 0.3,
+      fill: false,
+    })),
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 300 },
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        labels: { color: '#8b949e', font: { size: 10 }, boxWidth: 12, padding: 8 }
+      },
+      annotation: {},
+    },
+    scales: {
+      x: {
+        ticks: { color: '#8b949e', font: { size: 9 }, maxTicksLimit: 8 },
+        grid: { color: '#21262d' },
+      },
+      y: {
+        min: 20, max: 80,
+        ticks: { color: '#8b949e', font: { size: 9 } },
+        grid: { color: '#21262d' },
+      },
+    },
+  },
+});
+
+// Add threshold lines as dataset
+tempChart.data.datasets.push({
+  label: 'CRITICAL (60°C)',
+  data: Array(MAX_POINTS).fill(60),
+  borderColor: '#f8514960',
+  borderWidth: 1,
+  borderDash: [4, 4],
+  pointRadius: 0,
+  fill: false,
+});
+tempChart.data.datasets.push({
+  label: 'WARNING (50°C)',
+  data: Array(MAX_POINTS).fill(50),
+  borderColor: '#d2992260',
+  borderWidth: 1,
+  borderDash: [4, 4],
+  pointRadius: 0,
+  fill: false,
+});
+
+// ── Battery Badges ────────────────────────────────────────
+function renderBadges() {
+  const container = document.getElementById('badges-temp');
+  container.innerHTML = '';
+  BATTERIES.forEach(b => {
+    const s = state.batteries[b.id];
+    const el = document.createElement('div');
+    el.className = `bat-badge ${s.status}${state.selectedBat === b.id ? ' selected' : ''}`;
+    el.style.borderColor = b.color + '80';
+    el.textContent = `${b.id.replace('BAT-', '')} ${s.temp.toFixed(1)}°C`;
+    el.onclick = () => { state.selectedBat = b.id; renderBadges(); };
+    container.appendChild(el);
+  });
+}
+renderBadges();
+
+// ── Alert Log ─────────────────────────────────────────────
+function pushAlert(level, msg) {
+  const log = document.getElementById('alert-log');
+  const now = new Date().toLocaleTimeString('ko-KR');
+  const el = document.createElement('div');
+  el.className = `alert-item ${level}`;
+  el.innerHTML = `
+    <div class="alert-badge">${level}</div>
+    <div class="alert-body">
+      <div class="alert-msg">${msg}</div>
+      <div class="alert-time">${now}</div>
+    </div>`;
+  log.prepend(el);
+  // trim
+  while (log.children.length > MAX_ALERTS) log.removeChild(log.lastChild);
+
+  if (level !== 'INFO') {
+    state.alertCount++;
+    document.getElementById('stat-alert').textContent = state.alertCount;
+  }
+}
+
+// ── API Health Check ──────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API_BASE}/actuator/health`, { signal: AbortSignal.timeout(2000) });
+    const ok = r.ok;
+    document.getElementById('dot').className = `dot ${ok ? 'ok' : 'err'}`;
+    document.getElementById('api-status-text').textContent = ok
+      ? `백엔드 연결됨 (${API_BASE})` : `백엔드 응답 이상 (${r.status})`;
+  } catch {
+    document.getElementById('dot').className = 'dot err';
+    document.getElementById('api-status-text').textContent = `백엔드 연결 실패 — docker compose up 확인`;
+  }
+}
+checkHealth();
+setInterval(checkHealth, 10000);
+
+// ── Data Generator ────────────────────────────────────────
+function nextTemp(batteryId, override) {
+  if (override !== undefined) return override;
+  const s = state.batteries[batteryId];
+  const drift = (Math.random() - 0.48) * 1.5;
+  return Math.max(20, Math.min(75, s.temp + drift));
+}
+
+function nextVoltage(batteryId, override) {
+  if (override !== undefined) return override;
+  const s = state.batteries[batteryId];
+  const drift = (Math.random() - 0.5) * 0.4;
+  return Math.max(40, Math.min(58, s.voltage + drift));
+}
+
+function nextGps(batteryId) {
+  const s = state.batteries[batteryId];
+  return {
+    lat: s.lat + (Math.random() - 0.5) * 0.005,
+    lng: s.lng + (Math.random() - 0.5) * 0.005,
+  };
+}
+
+// ── Determine Alert Status ─────────────────────────────────
+function detectAlerts(batteryId, temp, voltage) {
+  if (temp > 60) return 'CRITICAL';
+  if (temp > 50) return 'WARNING';
+  if (voltage < 10 || voltage > 60) return 'CRITICAL';
+  return 'NORMAL';
+}
+
+// ── Send Telemetry ────────────────────────────────────────
+async function sendTelemetry(payload, batteryId) {
+  const logEl = document.getElementById('api-log');
+  logEl.textContent = `→ POST /v1/telemetry  ${JSON.stringify(payload).slice(0, 80)}…`;
+
+  state.sent++;
+  document.getElementById('stat-sent').textContent = state.sent;
+
+  // TPS tracking
+  const now = Date.now();
+  state.tpsWindow.push(now);
+  state.tpsWindow = state.tpsWindow.filter(t => now - t < 5000);
+  document.getElementById('stat-tps').textContent = (state.tpsWindow.length / 5).toFixed(1);
+
+  try {
+    const r = await fetch(`${API_BASE}/v1/telemetry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (r.status === 202) {
+      state.ok++;
+      document.getElementById('stat-ok').textContent = state.ok;
+      logEl.textContent = `✓ 202 Accepted — ${batteryId}  temp:${payload.temperature}°C  volt:${payload.voltage}V`;
+    } else if (r.status === 409) {
+      logEl.textContent = `↩ 409 Conflict — 중복 데이터 무시됨 (Idempotency 동작 확인!)`;
+      pushAlert('INFO', `Idempotency: ${batteryId} 동일 데이터 재전송 → 서버가 409로 거부`);
+    } else {
+      state.err++;
+      document.getElementById('stat-err').textContent = state.err;
+      logEl.textContent = `✗ ${r.status} — ${batteryId}`;
+      pushAlert('WARNING', `API 오류 ${r.status}: ${batteryId}`);
+    }
+  } catch (e) {
+    state.err++;
+    document.getElementById('stat-err').textContent = state.err;
+    logEl.textContent = `✗ 연결 실패 — ${e.message}`;
+  }
+}
+
+// ── Update Chart + Map ─────────────────────────────────────
+function pushChartPoint(temp, voltage) {
+  const label = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+
+  if (state.chartLabels.length >= MAX_POINTS) {
+    state.chartLabels.shift();
+    tempChart.data.datasets.forEach(ds => {
+      if (ds.data.length >= MAX_POINTS) ds.data.shift();
+    });
+  }
+
+  state.chartLabels.push(label);
+  tempChart.data.labels = state.chartLabels;
+
+  BATTERIES.forEach((b, i) => {
+    const val = b.id === BATTERIES[i]?.id ? state.batteries[b.id].temp : null;
+    tempChart.data.datasets[i].data.push(state.batteries[b.id].temp);
+  });
+
+  // Keep threshold lines the right length
+  const threshDatasets = tempChart.data.datasets.slice(BATTERIES.length);
+  threshDatasets.forEach(ds => {
+    ds.data.push(ds.data[0]);
+    if (ds.data.length > MAX_POINTS) ds.data.shift();
+  });
+
+  tempChart.update();
+}
+
+// ── Auto Tick ─────────────────────────────────────────────
+async function tick() {
+  const scenario = state.scenario;
+  state.scenario = null; // one-shot scenario resets
+
+  for (const b of BATTERIES) {
+    let temp, voltage, gpsLat, gpsLng, includeGps = true;
+
+    // Apply scenario only to first battery (or specified)
+    const isTarget = b === BATTERIES[0];
+
+    if (scenario === 'critical' && isTarget) {
+      temp    = 65 + Math.random() * 3;
+      voltage = 48;
+    } else if (scenario === 'warning' && isTarget) {
+      temp    = 51 + Math.random() * 2;
+      voltage = 48;
+    } else if (scenario === 'voltage' && isTarget) {
+      temp    = 35;
+      voltage = 8 + Math.random() * 2; // below 10V
+    } else if (scenario === 'gps' && isTarget) {
+      temp    = nextTemp(b.id);
+      voltage = nextVoltage(b.id);
+      includeGps = false;
+    } else if (scenario === 'idempotency' && isTarget) {
+      if (state.lastIdempotencyPayload) {
+        await sendTelemetry(state.lastIdempotencyPayload, b.id);
+        continue;
+      }
+      temp    = nextTemp(b.id);
+      voltage = nextVoltage(b.id);
+    } else {
+      temp    = nextTemp(b.id);
+      voltage = nextVoltage(b.id);
+    }
+
+    const gps = nextGps(b.id);
+    gpsLat = includeGps ? gps.lat : null;
+    gpsLng = includeGps ? gps.lng : null;
+
+    // Update local state
+    state.batteries[b.id].temp    = temp;
+    state.batteries[b.id].voltage = voltage;
+    if (includeGps) {
+      state.batteries[b.id].lat = gpsLat;
+      state.batteries[b.id].lng = gpsLng;
+    }
+
+    // Detect alerts
+    const prevStatus = state.batteries[b.id].status;
+    const newStatus  = includeGps ? detectAlerts(b.id, temp, voltage) : 'WARNING';
+    state.batteries[b.id].status = newStatus;
+
+    if (newStatus !== prevStatus) {
+      if (newStatus === 'CRITICAL') {
+        pushAlert('CRITICAL', `${b.id} [${b.city}] 🔴 온도 ${temp.toFixed(1)}°C — CRITICAL 임계치 초과!`);
+      } else if (newStatus === 'WARNING') {
+        if (!includeGps) {
+          pushAlert('WARNING', `${b.id} [${b.city}] 📡 GPS 데이터 누락`);
+        } else {
+          pushAlert('WARNING', `${b.id} [${b.city}] ⚠️ 온도 ${temp.toFixed(1)}°C — WARNING`);
+        }
+      } else if (prevStatus !== 'NORMAL') {
+        pushAlert('INFO', `${b.id} [${b.city}] ✅ 정상 상태 복구`);
+      }
+    }
+
+    updateMarker(b.id);
+
+    const payload = {
+      batteryId: b.id,
+      vehicleId: b.vehicleId,
+      timestamp: Date.now(),
+      temperature: parseFloat(temp.toFixed(2)),
+      voltage: parseFloat(voltage.toFixed(2)),
+      ...(includeGps
+        ? { gpsLat: parseFloat(gpsLat.toFixed(6)), gpsLng: parseFloat(gpsLng.toFixed(6)) }
+        : { gpsLat: null, gpsLng: null }),
+    };
+
+    if (scenario === 'idempotency' && isTarget) {
+      state.lastIdempotencyPayload = payload;
+    }
+
+    await sendTelemetry(payload, b.id);
+  }
+
+  pushChartPoint();
+  renderBadges();
+}
+
+// ── Auto Start/Stop ───────────────────────────────────────
+function toggleAuto() {
+  const btn = document.getElementById('btn-auto');
+  if (state.autoRunning) {
+    clearInterval(state.autoTimer);
+    state.autoRunning = false;
+    btn.textContent = '▶ 자동 전송 시작';
+    btn.classList.remove('active');
+    pushAlert('INFO', '자동 전송 일시 중지');
+  } else {
+    state.autoTimer = setInterval(tick, INTERVAL_MS);
+    state.autoRunning = true;
+    btn.textContent = '▶ 자동 전송 중';
+    btn.classList.add('active');
+    pushAlert('INFO', '자동 전송 재개');
+  }
+}
+
+// ── Scenario Buttons ──────────────────────────────────────
+function sendScenario(name) {
+  state.scenario = name;
+  if (!state.autoRunning) tick(); // manual trigger when stopped
+}
+
+function clearAlerts() {
+  document.getElementById('alert-log').innerHTML = '';
+  state.alertCount = 0;
+  document.getElementById('stat-alert').textContent = 0;
+}
+
+function clearStats() {
+  state.sent = state.ok = state.err = state.alertCount = 0;
+  state.tpsWindow = [];
+  ['stat-sent','stat-ok','stat-err','stat-alert','stat-tps'].forEach(id => {
+    document.getElementById(id).textContent = 0;
+  });
+}
+
+// ── Kick Off ──────────────────────────────────────────────
+// 자동 시작 안 함 — 버튼 클릭 시 시작
+</script>
+</body>
+</html>

@@ -4,17 +4,17 @@
 # 수정 금지: Orchestrator, Backend, DevOps 에이전트
 
 version: "1.0"
-generated_at: "2026-04-14T00:00:00Z"
+generated_at: "2026-04-15T00:00:00Z"
 phase: 1
 status: "completed"
-environment: "local"   # docker-compose 기반 로컬 환경 (AWS 전환 시 이 섹션 전체 교체)
+environment: "local"   # docker-compose 기반 로컬 환경 (Azure 전환 시 이 섹션 전체 교체)
 
-eks:
+aks:
   cluster_name: "local-docker-compose"
-  region: "ap-northeast-2"
+  location: "koreacentral"
   namespace: "battery-poc"
 
-msk:
+eventhub:
   bootstrap_servers: "kafka:29092"   # docker-compose 서비스명
   topics:
     telemetry_raw: "telemetry-raw"
@@ -23,19 +23,18 @@ msk:
     legacy_sync_queue: "legacy-sync-queue"
     dead_letter: "dead-letter-topic"
 
-rds:
+postgres:
   endpoint: "postgres"               # docker-compose 서비스명
   port: 5432
-  database: "battery_poc"
-  secret_arn: "local"                # 로컬: .env.local에서 직접 주입
+  database: "glovis_poc"
 
-dynamodb:
-  table_name: "battery-telemetry"
-  region: "ap-northeast-2"
+cosmosdb:
+  endpoint: "https://cosmosdb-emulator:8081"  # 로컬: Cosmos DB Emulator
+  database: "battery-poc"
+  container: "battery-telemetry"
 
-s3:
-  bucket_name: "local-skip"          # 로컬: S3/Athena 미사용
-  region: "ap-northeast-2"
+storage:
+  account_name: "local-skip"         # 로컬: Blob Storage 미사용
 
 api_gateway:
   endpoint: "http://localhost:8080"
