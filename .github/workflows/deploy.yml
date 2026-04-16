@@ -57,6 +57,15 @@ jobs:
           resource-group: ${{ env.AKS_RESOURCE_GROUP }}
           cluster-name: ${{ env.AKS_CLUSTER_NAME }}
 
+      # ── K8s Manifest 적용 (최초 배포 시 Deployment 생성) ──
+      - name: Apply K8s manifests
+        run: |
+          kubectl apply -f infra/k8s/namespace.yaml
+          kubectl apply -f infra/k8s/configmap.yaml
+          kubectl apply -f infra/k8s/telemetry.yaml
+          kubectl apply -f infra/k8s/alert.yaml
+          kubectl apply -f infra/k8s/legacy-sync.yaml
+
       # ── AKS 배포 (Rolling Update — 무중단) ──
       - name: Deploy to AKS (Rolling Update)
         run: |
