@@ -43,6 +43,9 @@ spec:
                 secretKeyRef:
                   name: battery-poc-secrets
                   key: cosmos-key
+            # docker-entrypoint.sh가 emulator 로직을 건너뛰도록 cloud profile 지정
+            - name: SPRING_PROFILES_ACTIVE
+              value: "cloud"
             - name: IOT_API_KEY
               valueFrom:
                 secretKeyRef:
