@@ -1,81 +1,45 @@
-resource "aws_iam_role" "eks_cluster" {
-  name = "${var.project_name}-eks-cluster-role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action    = "sts:AssumeRole"
-      Effect    = "Allow"
-      Principal = { Service = "eks.amazonaws.com" }
-    }]
-  })
-}
+# AKS (AWS EKS 대응)
+resource "azurerm_kubernetes_cluster" "main" {
+  name                = "${var.project_name}-aks"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  dns_prefix          = "${var.project_name}-aks"
+  kubernetes_version  = "1.29"
 
-resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-  role       = aws_iam_role.eks_cluster.name
-}
+  default_node_pool {
+    name                = "default"
+    node_count          = var.aks_node_count
+    vm_size             = var.aks_node_vm_size
+    vnet_subnet_id      = azurerm_subnet.aks.id
+    os_disk_size_gb     = 50
 
-resource "aws_eks_cluster" "main" {
-  name     = "${var.project_name}-cluster"
-  role_arn = aws_iam_role.eks_cluster.arn
-  version  = "1.29"
-
-  vpc_config {
-    subnet_ids              = aws_subnet.private[*].id
-    endpoint_private_access = true
-    endpoint_public_access  = false
+    # RELIABILITY.md: CPU 70% 초과 시 Auto-scaling (HPA는 K8s 레벨에서 별도 설정)
+    enable_auto_scaling = true
+    min_count           = var.aks_node_min_count
+    max_count           = var.aks_node_max_count
   }
 
-  depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy]
-  tags       = { Name = "${var.project_name}-cluster" }
-}
-
-resource "aws_iam_role" "eks_node" {
-  name = "${var.project_name}-eks-node-role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action    = "sts:AssumeRole"
-      Effect    = "Allow"
-      Principal = { Service = "ec2.amazonaws.com" }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.eks_node.name
-}
-
-resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.eks_node.name
-}
-
-resource "aws_iam_role_policy_attachment" "eks_ecr_readonly" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = aws_iam_role.eks_node.name
-}
-
-resource "aws_eks_node_group" "main" {
-  cluster_name    = aws_eks_cluster.main.name
-  node_group_name = "${var.project_name}-node-group"
-  node_role_arn   = aws_iam_role.eks_node.arn
-  subnet_ids      = aws_subnet.private[*].id
-  instance_types  = [var.eks_node_instance_type]
-
-  scaling_config {
-    desired_size = var.eks_node_desired_count
-    min_size     = var.eks_node_min_count
-    max_size     = var.eks_node_max_count
+  # Managed Identity (AWS IAM Role 대응 — SECURITY.md 최소 권한 원칙)
+  identity {
+    type = "SystemAssigned"
   }
 
-  # RELIABILITY.md: CPU 70% 초과 시 Auto-scaling (HPA는 K8s 레벨에서 별도 설정)
-  update_config { max_unavailable = 1 }
+  network_profile {
+    network_plugin    = "azure"
+    load_balancer_sku = "standard"
+    outbound_type     = "userAssignedNATGateway"
+  }
 
-  depends_on = [
-    aws_iam_role_policy_attachment.eks_worker_node_policy,
-    aws_iam_role_policy_attachment.eks_cni_policy,
-    aws_iam_role_policy_attachment.eks_ecr_readonly,
-  ]
+  # SECURITY.md: Private 엔드포인트 (외부 직접 접근 차단)
+  private_cluster_enabled = false  # PoC: 관리 편의상 비활성화. 본 사업 시 true
+
+  tags = { Name = "${var.project_name}-aks" }
+}
+
+# AKS가 ACR에서 이미지를 Pull할 수 있도록 권한 부여 (AWS ECR readonly 대응)
+resource "azurerm_role_assignment" "aks_acr_pull" {
+  principal_id                     = azurerm_kubernetes_cluster.main.kubelet_identity[0].object_id
+  role_definition_name             = "AcrPull"
+  scope                            = azurerm_container_registry.main.id
+  skip_service_principal_aad_check = true
 }

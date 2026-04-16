@@ -6,8 +6,8 @@ spring:
     name: legacy-sync-service
 
   datasource:
-    url: jdbc:postgresql://${RDS_ENDPOINT}:5432/${RDS_DB_NAME:battery_poc}
-    # 자격증명은 AWS Secrets Manager에서 런타임에 주입 (SECURITY.md)
+    url: jdbc:postgresql://${RDS_ENDPOINT}:5432/${RDS_DB_NAME:glovis_poc}
+    # 자격증명은 Azure Key Vault에서 런타임에 주입 (SECURITY.md)
     username: ${RDS_USERNAME}
     password: ${RDS_PASSWORD}
     driver-class-name: org.postgresql.Driver
@@ -28,6 +28,11 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        # Azure Event Hubs Kafka 인증
+        security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+        sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+        sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
 
 kafka:
   topics:
@@ -42,11 +47,6 @@ legacy:
 scheduler:
   legacy-sync:
     cron: "0 0 * * * *"                # TD-03: 1시간 주기 (본 사업 시 CDC로 전환)
-
-aws:
-  region: ${AWS_REGION:ap-northeast-2}
-  secretsmanager:
-    rds-secret-arn: ${RDS_SECRET_ARN}
 
 management:
   endpoints:

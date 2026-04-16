@@ -1,63 +1,75 @@
-resource "aws_security_group" "msk" {
-  name   = "${var.project_name}-msk-sg"
-  vpc_id = aws_vpc.main.id
+# Azure Event Hubs (AWS MSK/Kafka 대응)
+# Kafka 프로토콜 완전 호환 — 애플리케이션 코드 변경 없음
+resource "azurerm_eventhub_namespace" "main" {
+  name                = "${var.project_name}-eventhub"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku                 = "Standard"  # Kafka 프로토콜은 Standard 이상 필요
+  capacity            = var.eventhub_capacity
 
-  ingress {
-    from_port   = 9092
-    to_port     = 9092
-    protocol    = "tcp"
-    cidr_blocks = var.private_subnet_cidrs
-    description = "Kafka plaintext (내부 VPC only)"
-  }
+  # Kafka 엔드포인트 활성화
+  kafka_enabled = true
 
-  ingress {
-    from_port   = 9094
-    to_port     = 9094
-    protocol    = "tcp"
-    cidr_blocks = var.private_subnet_cidrs
-    description = "Kafka TLS (내부 VPC only)"
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  tags = { Name = "${var.project_name}-eventhub" }
 }
 
-resource "aws_msk_cluster" "main" {
-  cluster_name           = "${var.project_name}-kafka"
-  kafka_version          = "3.5.1"
-  number_of_broker_nodes = var.msk_broker_count
-
-  broker_node_group_info {
-    instance_type   = var.msk_broker_instance_type
-    client_subnets  = aws_subnet.private[*].id
-    security_groups = [aws_security_group.msk.id]
-    storage_info {
-      ebs_storage_info { volume_size = 100 }
-    }
-  }
-
-  encryption_info {
-    encryption_in_transit {
-      client_broker = "TLS_PLAINTEXT"
-      in_cluster    = true
-    }
-  }
-
-  tags = { Name = "${var.project_name}-kafka" }
-}
-
-# Kafka 토픽 정의
-# 실제 토픽 생성은 aws_msk_cluster 생성 후 Kafka CLI 또는 별도 provisioner로 수행
+# Kafka 토픽 정의 (contracts/kafka-schemas/ 기준)
 locals {
   kafka_topics = {
-    telemetry_raw        = "telemetry-raw"
-    telemetry_processed  = "telemetry-processed"
-    alert_events         = "alert-events"
-    legacy_sync_queue    = "legacy-sync-queue"
-    dead_letter          = "dead-letter-topic"
+    telemetry_raw       = "telemetry-raw"
+    telemetry_processed = "telemetry-processed"
+    alert_events        = "alert-events"
+    legacy_sync_queue   = "legacy-sync-queue"
+    dead_letter         = "dead-letter-topic"
   }
+}
+
+resource "azurerm_eventhub" "telemetry_raw" {
+  name                = local.kafka_topics.telemetry_raw
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 3
+  message_retention   = 1
+}
+
+resource "azurerm_eventhub" "telemetry_processed" {
+  name                = local.kafka_topics.telemetry_processed
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 3
+  message_retention   = 1
+}
+
+resource "azurerm_eventhub" "alert_events" {
+  name                = local.kafka_topics.alert_events
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 3
+  message_retention   = 1
+}
+
+resource "azurerm_eventhub" "legacy_sync_queue" {
+  name                = local.kafka_topics.legacy_sync_queue
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 1
+  message_retention   = 1
+}
+
+resource "azurerm_eventhub" "dead_letter" {
+  name                = local.kafka_topics.dead_letter
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 1
+  message_retention   = 7  # DLT는 7일 보존
+}
+
+# 서비스 연결용 공유 액세스 정책
+resource "azurerm_eventhub_namespace_authorization_rule" "app" {
+  name                = "app-access"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  listen              = true
+  send                = true
+  manage              = false
 }

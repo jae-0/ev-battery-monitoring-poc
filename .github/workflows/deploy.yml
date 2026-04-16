@@ -1,4 +1,4 @@
-name: Deploy to EKS
+name: Deploy to AKS
 
 on:
   workflow_run:
@@ -7,9 +7,9 @@ on:
     types: [completed]
 
 env:
-  AWS_REGION: ap-northeast-2
-  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-  EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+  ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}        # e.g. glovispocacr.azurecr.io
+  AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
+  AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
 
 jobs:
   deploy:
@@ -19,56 +19,60 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      # Azure 로그인 (AWS configure-aws-credentials 대응)
+      - name: Azure Login
+        uses: azure/login@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
+      # ACR 로그인 (AWS ECR login 대응)
+      - name: Login to Azure Container Registry
+        run: az acr login --name ${{ secrets.ACR_NAME }}
 
       # ── Telemetry Service ──
       - name: Build & Push telemetry image
         working-directory: services/telemetry
         run: |
-          docker build -t $ECR_REGISTRY/telemetry-service:${{ github.sha }} .
-          docker push $ECR_REGISTRY/telemetry-service:${{ github.sha }}
+          docker build -t $ACR_REGISTRY/telemetry-service:${{ github.sha }} .
+          docker push $ACR_REGISTRY/telemetry-service:${{ github.sha }}
 
       # ── Alert Service ──
       - name: Build & Push alert image
         working-directory: services/alert
         run: |
-          docker build -t $ECR_REGISTRY/alert-service:${{ github.sha }} .
-          docker push $ECR_REGISTRY/alert-service:${{ github.sha }}
+          docker build -t $ACR_REGISTRY/alert-service:${{ github.sha }} .
+          docker push $ACR_REGISTRY/alert-service:${{ github.sha }}
 
       # ── Legacy Sync Service ──
       - name: Build & Push legacy-sync image
         working-directory: services/legacy-sync
         run: |
-          docker build -t $ECR_REGISTRY/legacy-sync-service:${{ github.sha }} .
-          docker push $ECR_REGISTRY/legacy-sync-service:${{ github.sha }}
+          docker build -t $ACR_REGISTRY/legacy-sync-service:${{ github.sha }} .
+          docker push $ACR_REGISTRY/legacy-sync-service:${{ github.sha }}
 
-      # ── EKS 배포 (Rolling Update - 무중단) ──
-      - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
+      # AKS kubeconfig 설정 (AWS eks update-kubeconfig 대응)
+      - name: Set AKS context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ env.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ env.AKS_CLUSTER_NAME }}
 
-      - name: Deploy to EKS (Rolling Update)
+      # ── AKS 배포 (Rolling Update — 무중단) ──
+      - name: Deploy to AKS (Rolling Update)
         run: |
           kubectl set image deployment/telemetry-service \
-            telemetry=$ECR_REGISTRY/telemetry-service:${{ github.sha }} \
+            telemetry=$ACR_REGISTRY/telemetry-service:${{ github.sha }} \
             --namespace battery-poc
 
           kubectl set image deployment/alert-service \
-            alert=$ECR_REGISTRY/alert-service:${{ github.sha }} \
+            alert=$ACR_REGISTRY/alert-service:${{ github.sha }} \
             --namespace battery-poc
 
           kubectl set image deployment/legacy-sync-service \
-            legacy-sync=$ECR_REGISTRY/legacy-sync-service:${{ github.sha }} \
+            legacy-sync=$ACR_REGISTRY/legacy-sync-service:${{ github.sha }} \
             --namespace battery-poc
 
-      # ── 배포 상태 확인 (60초 내 미완료 시 롤백) ──
+      # ── 배포 상태 확인 (60초 내 미완료 시 자동 롤백) ──
       - name: Verify rollout
         run: |
           kubectl rollout status deployment/telemetry-service -n battery-poc --timeout=60s || \

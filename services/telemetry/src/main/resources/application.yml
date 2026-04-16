@@ -6,7 +6,7 @@ spring:
     name: telemetry-service
 
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}   # contracts/infra-outputs.yaml: msk.bootstrap_servers
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}   # contracts/infra-outputs.yaml: eventhub.bootstrap_servers
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -14,17 +14,27 @@ spring:
       retries: 3
       properties:
         enable.idempotence: true
+        # Azure Event Hubs Kafka 연동 (SASL/SSL 인증)
+        security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+        sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+        sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
 
 kafka:
   topics:
-    telemetry-raw: ${KAFKA_TOPIC_TELEMETRY_RAW}     # contracts/infra-outputs.yaml: msk.topics.telemetry_raw
+    telemetry-raw: ${KAFKA_TOPIC_TELEMETRY_RAW}     # contracts/infra-outputs.yaml: eventhub.topics.telemetry_raw
 
-aws:
-  region: ${AWS_REGION:ap-northeast-2}
-  dynamodb:
-    table-name: ${DYNAMODB_TABLE_NAME}              # contracts/infra-outputs.yaml: dynamodb.table_name
-  secretsmanager:
-    iot-api-key-arn: ${IOT_API_KEY_SECRET_ARN}      # IoT 단말기 API Key ARN
+# Azure Cosmos DB (AWS DynamoDB 대응)
+azure:
+  cosmos:
+    uri: ${COSMOS_ENDPOINT}                         # contracts/infra-outputs.yaml: cosmosdb.endpoint
+    key: ${COSMOS_KEY}                              # contracts/infra-outputs.yaml: cosmosdb.primary_key
+    database: ${COSMOS_DATABASE:battery-poc}
+    container: ${COSMOS_CONTAINER:battery-telemetry}
+  keyvault:
+    uri: ${KEY_VAULT_URI:}                          # contracts/infra-outputs.yaml: key_vault_uri
+
+iot:
+  api-key: ${IOT_API_KEY}
 
 management:
   endpoints:

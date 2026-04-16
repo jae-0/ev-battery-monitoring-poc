@@ -1,7 +1,8 @@
-# local 프로필
-aws:
-  secretsmanager:
-    enabled: false
+# local 프로필 — docker-compose 환경
+spring:
+  kafka:
+    properties:
+      security.protocol: PLAINTEXT  # 로컬 Kafka는 인증 없음
 
 logging:
   level:

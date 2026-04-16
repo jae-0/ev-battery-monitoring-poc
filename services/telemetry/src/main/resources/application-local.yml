@@ -1,16 +1,24 @@
-# local 프로필: AWS 서비스를 로컬 대체재로 교체
+# local 프로필: Azure 서비스를 로컬 대체재로 교체
 # docker-compose.yml 실행 시 SPRING_PROFILES_ACTIVE=local 로 자동 적용
 
-aws:
-  dynamodb:
-    endpoint: ${DYNAMODB_ENDPOINT:http://dynamodb-local:8000}
+# Cosmos DB Emulator (DynamoDB Local 대응)
+azure:
+  cosmos:
+    uri: ${COSMOS_ENDPOINT:https://cosmosdb-emulator:8081}
+    key: ${COSMOS_KEY:C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==}
+    database: battery-poc
+    container: battery-telemetry
+  keyvault:
+    uri: ""  # 로컬에서는 Key Vault 미사용 — env var로 직접 주입
 
-  # 로컬에서는 Secrets Manager 미사용 — env var로 직접 주입
-  secretsmanager:
-    enabled: false
+# 로컬 Kafka는 인증 없음 (docker-compose 내부 통신)
+spring:
+  kafka:
+    properties:
+      security.protocol: PLAINTEXT
 
 iot:
-  api-key: ${IOT_API_KEY:local-dev-api-key}  # .env.local에서 주입
+  api-key: ${IOT_API_KEY:local-dev-api-key}
 
 logging:
   level:

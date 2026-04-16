@@ -1,56 +1,33 @@
-# S3 Data Lake + Athena (ARCHITECTURE.md: QuickSight 비즈니스 시각화용)
-resource "aws_s3_bucket" "datalake" {
-  bucket = "${var.project_name}-datalake"
-  tags   = { Name = "${var.project_name}-datalake" }
-}
+# Azure Blob Storage (AWS S3 대응)
+# 12개월 무료: 5GB LRS 스토리지
+resource "azurerm_storage_account" "datalake" {
+  name                     = replace("${var.project_name}datalake", "-", "")
+  location                 = azurerm_resource_group.main.location
+  resource_group_name      = azurerm_resource_group.main.name
+  account_tier             = "Standard"
+  account_replication_type = "LRS"  # PoC: 단일 리전. 본 사업 시 GRS
 
-resource "aws_s3_bucket_versioning" "datalake" {
-  bucket = aws_s3_bucket.datalake.id
-  versioning_configuration { status = "Enabled" }
-}
+  # SECURITY.md: 공개 접근 차단
+  allow_nested_items_to_be_public = false
+  public_network_access_enabled   = false
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "datalake" {
-  bucket = aws_s3_bucket.datalake.id
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.main.arn
-    }
+  # SECURITY.md: at-rest 암호화 (기본 활성화)
+  blob_properties {
+    versioning_enabled = true
   }
+
+  tags = { Name = "${var.project_name}-datalake" }
 }
 
-resource "aws_s3_bucket_public_access_block" "datalake" {
-  bucket                  = aws_s3_bucket.datalake.id
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
+# 데이터 레이크 컨테이너 (S3 버킷 하위 prefix 대응)
+resource "azurerm_storage_container" "telemetry" {
+  name                  = "telemetry-archive"
+  storage_account_name  = azurerm_storage_account.datalake.name
+  container_access_type = "private"
 }
 
-# Athena 쿼리 결과 저장 버킷
-resource "aws_s3_bucket" "athena_results" {
-  bucket = "${var.project_name}-athena-results"
-  tags   = { Name = "${var.project_name}-athena-results" }
-}
-
-resource "aws_s3_bucket_public_access_block" "athena_results" {
-  bucket                  = aws_s3_bucket.athena_results.id
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-resource "aws_athena_workgroup" "main" {
-  name = "${var.project_name}-workgroup"
-
-  configuration {
-    result_configuration {
-      output_location = "s3://${aws_s3_bucket.athena_results.bucket}/results/"
-    }
-  }
-}
-
-resource "aws_glue_catalog_database" "main" {
-  name = "${var.project_name}_catalog"
+resource "azurerm_storage_container" "artifacts" {
+  name                  = "artifacts"
+  storage_account_name  = azurerm_storage_account.datalake.name
+  container_access_type = "private"
 }

@@ -1,26 +1,30 @@
 # outputs.tf
-# @System-Architect-Agent: 이 파일의 값을 기반으로 contracts/infra-outputs.yaml을 작성합니다.
-# terraform output -json 명령으로 실제 값을 확인 후 contracts 파일을 업데이트하세요.
+# terraform output -json 명령으로 실제 값 확인 후 contracts/infra-outputs.yaml을 업데이트하세요.
 
-output "eks_cluster_name" {
-  description = "EKS 클러스터명 → contracts/infra-outputs.yaml: eks.cluster_name"
-  value       = aws_eks_cluster.main.name
+output "aks_cluster_name" {
+  description = "AKS 클러스터명 → contracts/infra-outputs.yaml: aks.cluster_name"
+  value       = azurerm_kubernetes_cluster.main.name
 }
 
-output "eks_region" {
-  description = "EKS 리전 → contracts/infra-outputs.yaml: eks.region"
-  value       = var.aws_region
+output "aks_resource_group" {
+  description = "AKS 리소스 그룹"
+  value       = azurerm_resource_group.main.name
 }
 
-output "msk_bootstrap_servers" {
-  description = "MSK 브로커 주소 → contracts/infra-outputs.yaml: msk.bootstrap_servers"
-  value       = aws_msk_cluster.main.bootstrap_brokers_tls
+output "eventhub_bootstrap_servers" {
+  description = "Event Hubs Kafka 엔드포인트 → contracts/infra-outputs.yaml: eventhub.bootstrap_servers"
+  value       = "${azurerm_eventhub_namespace.main.name}.servicebus.windows.net:9093"
+  sensitive   = true
+}
+
+output "eventhub_connection_string" {
+  description = "Event Hubs 연결 문자열"
+  value       = azurerm_eventhub_namespace_authorization_rule.app.primary_connection_string
   sensitive   = true
 }
 
 output "kafka_topic_telemetry_raw" {
-  description = "→ contracts/infra-outputs.yaml: msk.topics.telemetry_raw"
-  value       = local.kafka_topics.telemetry_raw
+  value = local.kafka_topics.telemetry_raw
 }
 
 output "kafka_topic_telemetry_processed" {
@@ -39,35 +43,43 @@ output "kafka_topic_dead_letter" {
   value = local.kafka_topics.dead_letter
 }
 
-output "rds_endpoint" {
-  description = "RDS 엔드포인트 → contracts/infra-outputs.yaml: rds.endpoint"
-  value       = aws_db_instance.main.address
+output "cosmos_endpoint" {
+  description = "Cosmos DB 엔드포인트 → contracts/infra-outputs.yaml: cosmosdb.endpoint"
+  value       = azurerm_cosmosdb_account.main.endpoint
   sensitive   = true
 }
 
-output "rds_secret_arn" {
-  description = "RDS 자격증명 Secrets Manager ARN → contracts/infra-outputs.yaml: rds.secret_arn"
-  value       = aws_db_instance.main.master_user_secret[0].secret_arn
+output "cosmos_primary_key" {
+  description = "Cosmos DB Primary Key"
+  value       = azurerm_cosmosdb_account.main.primary_key
   sensitive   = true
 }
 
-output "dynamodb_table_name" {
-  description = "DynamoDB 테이블명 → contracts/infra-outputs.yaml: dynamodb.table_name"
-  value       = aws_dynamodb_table.battery_telemetry.name
+output "cosmos_database_name" {
+  value = azurerm_cosmosdb_sql_database.main.name
 }
 
-output "s3_datalake_bucket" {
-  description = "S3 Data Lake 버킷명 → contracts/infra-outputs.yaml: s3.bucket_name"
-  value       = aws_s3_bucket.datalake.bucket
+output "cosmos_container_name" {
+  value = azurerm_cosmosdb_sql_container.battery_telemetry.name
 }
 
-output "kms_key_arn" {
-  description = "KMS Key ARN"
-  value       = aws_kms_key.main.arn
+output "postgres_fqdn" {
+  description = "PostgreSQL FQDN → contracts/infra-outputs.yaml: postgres.endpoint"
+  value       = azurerm_postgresql_flexible_server.main.fqdn
   sensitive   = true
 }
 
-output "iot_api_key_secret_arn" {
-  description = "IoT API Key Secrets Manager ARN"
-  value       = aws_secretsmanager_secret.iot_api_key.arn
+output "acr_login_server" {
+  description = "ACR 로그인 서버 주소 (이미지 Push/Pull에 사용)"
+  value       = azurerm_container_registry.main.login_server
+}
+
+output "key_vault_uri" {
+  description = "Key Vault URI"
+  value       = azurerm_key_vault.main.vault_uri
+}
+
+output "storage_account_name" {
+  description = "Azure Blob Storage 계정명"
+  value       = azurerm_storage_account.datalake.name
 }
