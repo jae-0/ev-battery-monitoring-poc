@@ -63,7 +63,7 @@ spec:
                   key: kafka-sasl-jaas-config
           resources:
             requests:
-              cpu: "500m"
+              cpu: "100m"
               memory: "512Mi"
             limits:
               cpu: "1000m"
@@ -72,7 +72,7 @@ spec:
             httpGet:
               path: /actuator/health
               port: 8080
-            initialDelaySeconds: 30
+            initialDelaySeconds: 90
             periodSeconds: 10
           readinessProbe:
             httpGet:
@@ -99,7 +99,7 @@ spec:
   ports:
     - port: 8080
       targetPort: 8080
-  type: ClusterIP                   # 외부 노출 없음 — API Gateway가 앞단 처리
+  type: LoadBalancer
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

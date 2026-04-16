@@ -8,11 +8,11 @@ resource "azurerm_kubernetes_cluster" "main" {
   kubernetes_version  = "1.33"
 
   default_node_pool {
-    name                = "default"
-    node_count          = var.aks_node_count
-    vm_size             = "Standard_D2s_v3"  # koreacentral 지원 확인
-    vnet_subnet_id      = azurerm_subnet.aks.id
-    os_disk_size_gb     = 50
+    name                        = "default"
+    temporary_name_for_rotation = "tmpdefault"
+    vm_size                     = "Standard_D2s_v3"
+    vnet_subnet_id              = azurerm_subnet.aks.id
+    os_disk_size_gb             = 50
 
     # RELIABILITY.md: CPU 70% 초과 시 Auto-scaling (HPA는 K8s 레벨에서 별도 설정)
     enable_auto_scaling = true
@@ -47,9 +47,18 @@ resource "azurerm_kubernetes_cluster" "main" {
   private_cluster_enabled = false  # PoC: 관리 편의상 비활성화. 본 사업 시 true
 
   # AKS 서브넷에 NAT Gateway 연결 완료 후 클러스터 생성
-  depends_on = [azurerm_subnet_nat_gateway_association.aks]
+  depends_on = [
+    azurerm_subnet_nat_gateway_association.aks,
+  ]
 
   tags = { Name = "${var.project_name}-aks" }
+}
+
+# AKS 관리 ID에 VNet Network Contributor 권한 부여 (LoadBalancer 생성용)
+resource "azurerm_role_assignment" "aks_network_contributor" {
+  principal_id         = azurerm_kubernetes_cluster.main.identity[0].principal_id
+  role_definition_name = "Network Contributor"
+  scope                = azurerm_virtual_network.main.id
 }
 
 # AKS가 ACR에서 이미지를 Pull할 수 있도록 권한 부여 (AWS ECR readonly 대응)
