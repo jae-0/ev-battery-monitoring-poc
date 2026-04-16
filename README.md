@@ -21,6 +21,16 @@
 
 ---
 
+## 🤖 AI Harness Engineering (인프라 자동화 및 개발 지원)
+
+백엔드 개발팀이 비즈니스 로직에만 집중할 수 있도록, AI 에이전트(Architect, DevOps)를 활용한 **선언적 인프라 자동화 및 DevEx(Developer Experience) 환경**을 구축했습니다.
+
+* **AI 친화적 IaC 설계 (Flat Terraform Structure):** AI의 컨텍스트 누락(Hallucination)을 방지하기 위해 복잡한 모듈화를 배제하고 `/infra/terraform` 내 단일 계층(Flat)으로 코드를 구성하여 프로비저닝 안정성을 극대화했습니다.
+* **상태 기반 오케스트레이션:** `contracts/` 디렉토리 내 YAML 파일 상태를 기반으로 인프라 배포 결과(엔드포인트, 인증 정보)가 백엔드 서비스 환경 변수로 자동 주입되도록 파이프라인을 설계했습니다.
+* **로컬 DevEx 완벽 지원:** 클라우드 비용 없이도 개발자가 로컬에서 전체 인프라(Kafka, CosmosDB Emulator, PostgreSQL)를 모사하여 테스트할 수 있도록 Docker Compose 기반의 원클릭 샌드박스를 제공합니다.
+
+---
+
 ## 🏗️ 아키텍처 (Architecture)
 
 ```text
