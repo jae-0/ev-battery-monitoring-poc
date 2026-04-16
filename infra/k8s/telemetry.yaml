@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
         - name: telemetry
-          image: telemetry-service:latest  # deploy.yml의 kubectl set image로 교체됨
+          image: glovispocacr.azurecr.io/telemetry-service:latest  # deploy.yml의 kubectl set image로 교체됨
           ports:
             - containerPort: 8080
           envFrom:

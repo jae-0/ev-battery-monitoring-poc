@@ -84,11 +84,11 @@ jobs:
       # ── 배포 상태 확인 (60초 내 미완료 시 자동 롤백) ──
       - name: Verify rollout
         run: |
-          kubectl rollout status deployment/telemetry-service -n battery-poc --timeout=60s || \
+          kubectl rollout status deployment/telemetry-service -n battery-poc --timeout=180s || \
             (kubectl rollout undo deployment/telemetry-service -n battery-poc && exit 1)
 
-          kubectl rollout status deployment/alert-service -n battery-poc --timeout=60s || \
+          kubectl rollout status deployment/alert-service -n battery-poc --timeout=180s || \
             (kubectl rollout undo deployment/alert-service -n battery-poc && exit 1)
 
-          kubectl rollout status deployment/legacy-sync-service -n battery-poc --timeout=60s || \
+          kubectl rollout status deployment/legacy-sync-service -n battery-poc --timeout=180s || \
             (kubectl rollout undo deployment/legacy-sync-service -n battery-poc && exit 1)
