@@ -4,12 +4,12 @@ resource "azurerm_kubernetes_cluster" "main" {
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   dns_prefix          = "${var.project_name}-aks"
-  kubernetes_version  = "1.29"
+  kubernetes_version  = "1.33"
 
   default_node_pool {
     name                = "default"
     node_count          = var.aks_node_count
-    vm_size             = var.aks_node_vm_size
+    vm_size             = "Standard_D2s_v3"  # koreacentral 지원 확인
     vnet_subnet_id      = azurerm_subnet.aks.id
     os_disk_size_gb     = 50
 
@@ -28,10 +28,15 @@ resource "azurerm_kubernetes_cluster" "main" {
     network_plugin    = "azure"
     load_balancer_sku = "standard"
     outbound_type     = "userAssignedNATGateway"
+    service_cidr      = "10.100.0.0/16"   # VNet 10.0.0.0/16과 충돌 방지
+    dns_service_ip    = "10.100.0.10"
   }
 
   # SECURITY.md: Private 엔드포인트 (외부 직접 접근 차단)
   private_cluster_enabled = false  # PoC: 관리 편의상 비활성화. 본 사업 시 true
+
+  # AKS 서브넷에 NAT Gateway 연결 완료 후 클러스터 생성
+  depends_on = [azurerm_subnet_nat_gateway_association.aks]
 
   tags = { Name = "${var.project_name}-aks" }
 }

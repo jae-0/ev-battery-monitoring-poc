@@ -8,7 +8,7 @@ resource "azurerm_cosmosdb_account" "main" {
   kind                = "GlobalDocumentDB"  # NoSQL API
 
   # 무료 티어 활성화 (계정당 1개만 가능)
-  enable_free_tier = true
+  free_tier_enabled = true
 
   consistency_policy {
     consistency_level = "Session"

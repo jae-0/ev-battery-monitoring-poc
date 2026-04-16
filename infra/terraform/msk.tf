@@ -7,8 +7,7 @@ resource "azurerm_eventhub_namespace" "main" {
   sku                 = "Standard"  # Kafka 프로토콜은 Standard 이상 필요
   capacity            = var.eventhub_capacity
 
-  # Kafka 엔드포인트 활성화
-  kafka_enabled = true
+  # azurerm v3.x: Standard SKU는 Kafka 프로토콜 기본 지원 (kafka_enabled 제거됨)
 
   tags = { Name = "${var.project_name}-eventhub" }
 }

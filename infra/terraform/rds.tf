@@ -17,11 +17,10 @@ resource "azurerm_postgresql_flexible_server" "main" {
   backup_retention_days        = 7
   geo_redundant_backup_enabled = false  # PoC only
 
-  # SECURITY.md: Private 엔드포인트 (외부 접근 차단)
-  delegated_subnet_id = azurerm_subnet.private[0].id
-  private_dns_zone_id = azurerm_private_dns_zone.postgres.id
-
-  depends_on = [azurerm_private_dns_zone_virtual_network_link.postgres]
+  # PoC: VNet 통합 제거 (delegated_subnet + public_access 동시 사용 불가)
+  # 본 사업 시: delegated_subnet_id + private_dns_zone_id 복원 후 public_network_access_enabled = false
+  public_network_access_enabled = true
+  zone                          = "1"  # state와 일치 (변경 시 high_availability와 교환 필요)
 
   tags = { Name = "${var.project_name}-postgres" }
 }
@@ -33,23 +32,6 @@ resource "azurerm_postgresql_flexible_server_database" "main" {
   collation = "en_US.utf8"
 }
 
-# Private DNS Zone (AKS → PostgreSQL 내부 이름 해석)
-resource "azurerm_private_dns_zone" "postgres" {
-  name                = "${var.project_name}.postgres.database.azure.com"
-  resource_group_name = azurerm_resource_group.main.name
-}
-
-resource "azurerm_private_dns_zone_virtual_network_link" "postgres" {
-  name                  = "${var.project_name}-postgres-dns-link"
-  private_dns_zone_name = azurerm_private_dns_zone.postgres.name
-  resource_group_name   = azurerm_resource_group.main.name
-  virtual_network_id    = azurerm_virtual_network.main.id
-}
-
-# PostgreSQL 방화벽 — AKS 서브넷에서만 접근 허용 (SECURITY.md)
-resource "azurerm_postgresql_flexible_server_firewall_rule" "aks" {
-  name             = "allow-aks"
-  server_id        = azurerm_postgresql_flexible_server.main.id
-  start_ip_address = "10.0.21.0"
-  end_ip_address   = "10.0.21.255"
-}
+# Private DNS Zone — PoC에서 VNet 통합 제거로 미사용 (본 사업 시 복원)
+# resource "azurerm_private_dns_zone" "postgres" { ... }
+# resource "azurerm_private_dns_zone_virtual_network_link" "postgres" { ... }
