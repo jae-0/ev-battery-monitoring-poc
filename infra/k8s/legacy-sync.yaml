@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
         - name: legacy-sync
-          image: legacy-sync-service:latest
+          image: glovispocacr.azurecr.io/legacy-sync-service:latest
           ports:
             - containerPort: 8082
           envFrom:
