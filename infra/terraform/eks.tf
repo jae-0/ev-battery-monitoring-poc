@@ -1,4 +1,5 @@
 # AKS (AWS EKS 대응)
+#tfsec:ignore:azure-container-limit-authorized-ips
 resource "azurerm_kubernetes_cluster" "main" {
   name                = "${var.project_name}-aks"
   location            = azurerm_resource_group.main.location
@@ -30,6 +31,16 @@ resource "azurerm_kubernetes_cluster" "main" {
     outbound_type     = "userAssignedNATGateway"
     service_cidr      = "10.100.0.0/16"   # VNet 10.0.0.0/16과 충돌 방지
     dns_service_ip    = "10.100.0.10"
+    network_policy    = "azure"            # tfsec: azure-container-configured-network-policy
+  }
+
+  # tfsec: azure-container-use-rbac-permissions
+  role_based_access_control_enabled = true
+
+  # tfsec:ignore:azure-container-limit-authorized-ips
+  # PoC: GitHub Actions 러너 IP가 동적이라 제한 불가. 본 사업 시 self-hosted runner로 전환 예정
+  api_server_access_profile {
+    authorized_ip_ranges = ["0.0.0.0/0"]
   }
 
   # SECURITY.md: Private 엔드포인트 (외부 직접 접근 차단)

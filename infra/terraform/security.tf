@@ -29,6 +29,14 @@ resource "azurerm_key_vault" "main" {
     secret_permissions = ["Get", "List"]
   }
 
+  # tfsec: azure-keyvault-specify-network-acl
+  # PoC: AzureServices 허용 + 기본 Deny (본 사업 시 VNet 서비스 엔드포인트로 교체)
+  network_acls {
+    default_action = "Deny"
+    bypass         = ["AzureServices"]
+    ip_rules       = []
+  }
+
   tags = { Name = "${var.project_name}-keyvault" }
 }
 

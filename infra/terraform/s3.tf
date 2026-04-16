@@ -11,6 +11,8 @@ resource "azurerm_storage_account" "datalake" {
   allow_nested_items_to_be_public = false
   # PoC: Terraform이 컨테이너를 생성하려면 네트워크 접근 필요 — 본 사업 시 false + VNet 서비스 엔드포인트 구성
   public_network_access_enabled   = true
+  # tfsec: azure-storage-use-secure-tls-policy
+  min_tls_version                 = "TLS1_2"
 
   # SECURITY.md: at-rest 암호화 (기본 활성화)
   blob_properties {
